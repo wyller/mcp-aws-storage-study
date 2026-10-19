@@ -94,7 +94,7 @@
       "Resource": "*"
     },
     {
-      "Sid": "NegarMexerEmIdentidadesProtegidas",
+      "Sid": "NegarIAMForaDosRecursosDeLab",
       "Effect": "Deny",
       "Action": [
         "iam:Delete*",
@@ -108,14 +108,9 @@
         "iam:Attach*",
         "iam:Create*"
       ],
-      "Resource": [
-        "arn:aws:iam::004009722521:root",
-        "arn:aws:iam::004009722521:user/readonly-user",
-        "arn:aws:iam::004009722521:role/claude-cleanup-role",
-        "arn:aws:iam::004009722521:policy/CustomS3CreateBucket",
-        "arn:aws:iam::004009722521:policy/CustomS3DeleteBucket",
-        "arn:aws:iam::004009722521:policy/claude-cleanup-delete-only",
-        "arn:aws:iam::004009722521:mfa/*"
+      "NotResource": [
+        "arn:aws:iam::004009722521:role/lab-*",
+        "arn:aws:iam::004009722521:instance-profile/lab-*"
       ]
     },
     {

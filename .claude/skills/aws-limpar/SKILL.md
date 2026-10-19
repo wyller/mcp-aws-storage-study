@@ -34,7 +34,8 @@ O dry-run é o padrão do aws-nuke, então ele não apaga nada. Leia o arquivo e
 
 - uma tabela **região → tipo → quantidade** do que *seria removido*
 - destaque o que custa por hora: EC2, NAT Gateway, Elastic IP, load balancers, RDS, FSx, Transfer, Storage Gateway, VPC endpoints de interface
-- se aparecer algo que parece acesso humano (IAMUser, IAMRole, IAMPolicy, MFA, budget), **pare**: o filtro está errado
+- IAMRole e IAMInstanceProfile com nome `lab-*` são recursos de lab (criados pelo Terraform) e podem ir
+- qualquer outro item de IAM (IAMUser, IAMRole, IAMPolicy, MFA) ou budget, **pare**: o filtro está errado. A policy da role nega mexer em IAM fora de `lab-*`, mas o dry-run não sabe disso
 
 Se não houver nada a remover, diga isso e encerre.
 

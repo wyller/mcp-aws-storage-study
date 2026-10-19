@@ -45,16 +45,22 @@ presets:
           value: "*"
       IAMRole:
         - "claude-cleanup-role"
+        - "terraform-lab-role"
       IAMRolePolicyAttachment:
         - property: RoleName
           value: "claude-cleanup-role"
+        - property: RoleName
+          value: "terraform-lab-role"
       IAMRolePolicy:
         - property: "role:RoleName"
           value: "claude-cleanup-role"
+        - property: "role:RoleName"
+          value: "terraform-lab-role"
       IAMPolicy:
         - "arn:aws:iam::004009722521:policy/CustomS3CreateBucket"
         - "arn:aws:iam::004009722521:policy/CustomS3DeleteBucket"
         - "arn:aws:iam::004009722521:policy/claude-cleanup-delete-only"
+        - "arn:aws:iam::004009722521:policy/terraform-lab-iam-lab-roles"
       BudgetsBudget:
         - property: Name
           value: "My Monthly Cost Budget"

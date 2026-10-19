@@ -15,5 +15,7 @@ else
   echo "Inventário AWS: ainda não há inventário salvo (rode scripts/inventario.sh para ver o estado atual)."
 fi
 
+echo "Para criar recursos (Terraform/CLI): rode aws-lab no seu terminal; pede o MFA e vale 1h. aws-lab-off volta ao readonly."
+
 "$dir/scripts/hook-session-end.sh"
 exit 0
