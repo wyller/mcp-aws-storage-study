@@ -46,11 +46,20 @@ presets:
       IAMRole:
         - "claude-cleanup-role"
         - "terraform-lab-role"
+        # Role de lab reaproveitada entre os dias (EC2 lendo S3); fica, ao contrário das outras lab-*.
+        - "lab-s3-read-role"
       IAMRolePolicyAttachment:
         - property: RoleName
           value: "claude-cleanup-role"
         - property: RoleName
           value: "terraform-lab-role"
+        - property: RoleName
+          value: "lab-s3-read-role"
+      IAMInstanceProfile:
+        - "lab-s3-read-role"
+      IAMInstanceProfileRole:
+        - property: InstanceProfile
+          value: "lab-s3-read-role"
       IAMRolePolicy:
         - property: "role:RoleName"
           value: "claude-cleanup-role"

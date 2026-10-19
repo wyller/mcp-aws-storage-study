@@ -114,6 +114,26 @@
       ]
     },
     {
+      "Sid": "NegarLabS3ReadRole",
+      "Effect": "Deny",
+      "Action": [
+        "iam:Delete*",
+        "iam:Detach*",
+        "iam:Remove*",
+        "iam:Deactivate*",
+        "iam:Disable*",
+        "iam:Untag*",
+        "iam:Update*",
+        "iam:Put*",
+        "iam:Attach*",
+        "iam:Create*"
+      ],
+      "Resource": [
+        "arn:aws:iam::004009722521:role/lab-s3-read-role",
+        "arn:aws:iam::004009722521:instance-profile/lab-s3-read-role"
+      ]
+    },
+    {
       "Sid": "NegarConfigsDeContaBillingBudget",
       "Effect": "Deny",
       "Action": [
