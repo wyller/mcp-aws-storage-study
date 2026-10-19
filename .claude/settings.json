@@ -1,0 +1,68 @@
+{
+  "enabledMcpjsonServers": ["aws-api", "aws-knowledge"],
+  "permissions": {
+    "deny": [
+      "Bash(aws * create-*)",
+      "Bash(aws * run-instances*)",
+      "Bash(aws * put-*)",
+      "Bash(aws * start-*)",
+      "Bash(aws * update-*)",
+      "Bash(aws * modify-*)",
+      "Bash(aws * attach-*)",
+      "Bash(aws * associate-*)",
+      "Bash(aws * allocate-*)",
+      "Bash(aws * register-*)",
+      "Bash(aws * import-*)",
+      "Bash(aws * copy-*)",
+      "Bash(aws * restore-*)",
+      "Bash(aws * enable-*)",
+      "Bash(aws * authorize-*)",
+      "Bash(aws * tag-*)",
+      "Bash(aws * add-*)",
+      "Bash(aws * set-*)",
+      "Bash(aws * upload-*)",
+      "Bash(aws * request-*)",
+      "Bash(aws * deploy*)",
+      "Bash(aws s3 mb*)",
+      "Bash(aws s3 cp*)",
+      "Bash(aws s3 mv*)",
+      "Bash(aws s3 sync*)",
+      "Bash(aws iam *)",
+      "Bash(aws sts assume-role*)",
+      "Edit(~/.aws/credentials)",
+      "Write(~/.aws/credentials)",
+      "Read(~/.aws/credentials)"
+    ],
+    "ask": [
+      "Bash(*--no-dry-run*)",
+      "Bash(*--profile cleanup*)",
+      "Bash(*AWS_PROFILE=cleanup*)",
+      "Bash(aws * delete-*)",
+      "Bash(aws * terminate-*)",
+      "Bash(aws s3 rm*)",
+      "Bash(aws s3 rb*)",
+      "Edit(nuke-config.yaml)",
+      "Write(nuke-config.yaml)",
+      "Edit(policies/**)",
+      "Write(policies/**)",
+      "Edit(~/.aws/config)",
+      "Write(~/.aws/config)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hook-session-start.sh", "timeout": 10 }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hook-session-end.sh", "timeout": 10 }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SoOReadonlyUserAssume",
+      "Effect": "Allow",
+      "Principal": { "AWS": "arn:aws:iam::004009722521:user/readonly-user" },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}

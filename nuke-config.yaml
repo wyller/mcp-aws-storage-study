@@ -1,0 +1,113 @@
+# aws-nuke v3 — limpeza da conta de estudos.
+# Tudo que NÃO casa com um filtro abaixo é apagado, em todas as regiões habilitadas.
+# A policy da claude-cleanup-role nega de qualquer forma mexer nos itens protegidos;
+# estes filtros só evitam tentativas (e ruído de AccessDenied).
+
+# Obrigatório ter ≥1 conta bloqueada. Conta fictícia: a trava real é o alias abaixo.
+blocklist:
+  - "999999999999"
+
+# Recusa rodar se o alias da conta contiver algum destes termos (além do padrão "prod").
+blocklist-terms:
+  - "prod"
+  - "production"
+  - "live"
+
+regions:
+  - all
+
+accounts:
+  "004009722521": # alias esperado: wyller-estudos
+    presets:
+      - acesso-humano
+      - vpc-default
+
+presets:
+  acesso-humano:
+    filters:
+      IAMUser:
+        - "readonly-user"
+      IAMUserPolicyAttachment:
+        - property: UserName
+          value: "readonly-user"
+      IAMUserAccessKey:
+        - property: UserName
+          value: "readonly-user"
+      IAMLoginProfile:
+        - property: UserName
+          value: "readonly-user"
+      IAMUserMFADevice:
+        - property: UserName
+          value: "readonly-user"
+      # Inclui o MFA do root.
+      IAMVirtualMFADevice:
+        - type: glob
+          value: "*"
+      IAMRole:
+        - "claude-cleanup-role"
+      IAMRolePolicyAttachment:
+        - property: RoleName
+          value: "claude-cleanup-role"
+      IAMRolePolicy:
+        - property: "role:RoleName"
+          value: "claude-cleanup-role"
+      IAMPolicy:
+        - "arn:aws:iam::004009722521:policy/CustomS3CreateBucket"
+        - "arn:aws:iam::004009722521:policy/CustomS3DeleteBucket"
+        - "arn:aws:iam::004009722521:policy/claude-cleanup-delete-only"
+      BudgetsBudget:
+        - property: Name
+          value: "My Monthly Cost Budget"
+
+  # VPCs default não custam nada e são pré-requisito de EC2/EFS/DataSync rápidos.
+  vpc-default:
+    filters:
+      EC2VPC:
+        - property: IsDefault
+          value: "true"
+      EC2Subnet:
+        - property: DefaultVPC
+          value: "true"
+      EC2InternetGateway:
+        - property: DefaultVPC
+          value: "true"
+      EC2InternetGatewayAttachment:
+        - property: DefaultVPC
+          value: "true"
+      EC2RouteTable:
+        - property: DefaultVPC
+          value: "true"
+      EC2DHCPOption:
+        - property: DefaultVPC
+          value: "true"
+      EC2DefaultSecurityGroupRule:
+        - property: DefaultVPC
+          value: "true"
+
+resource-types:
+  excludes:
+    # S3Bucket já esvazia o bucket (objetos e versões); listar objeto a objeto só deixa lento.
+    - S3Object
+    # Configuração da conta, não recurso de estudo.
+    - IAMAccountSettingPasswordPolicy
+    # Service-linked roles: a AWS gerencia; IAMRole já as ignora por padrão.
+
+settings:
+  EC2Instance:
+    DisableDeletionProtection: true
+    DisableStopProtection: true
+  EC2Image:
+    DisableDeregistrationProtection: true
+    IncludeDisabled: true
+    IncludeDeprecated: true
+  RDSInstance:
+    DisableDeletionProtection: true
+  CloudFormationStack:
+    DisableDeletionProtection: true
+  ELBv2:
+    DisableDeletionProtection: true
+  DynamoDBTable:
+    DisableDeletionProtection: true
+  S3Bucket:
+    BypassGovernanceRetention: true
+    RemoveObjectLegalHold: true

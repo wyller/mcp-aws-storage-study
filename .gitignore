@@ -1,0 +1,4 @@
+.venv/
+.claude/estado/
+.claude/settings.local.json
+__pycache__/
