@@ -37,4 +37,4 @@ aws iam list-account-aliases                         # wyller-estudos
 ./scripts/inventario.sh                              # LIMPO
 ```
 
-Depois, abra o Claude Code em `/var/www/aws-storage-study`, aprove os MCPs `aws-api` e `aws-knowledge` e peça um `/aws-limpar` para testar o dry-run.
+Depois, abra o Claude Code em `/var/www/mcp-aws-storage-study`, aprove os MCPs `aws-api` e `aws-knowledge` e peça um `/aws-limpar` para testar o dry-run.
