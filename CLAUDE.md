@@ -8,14 +8,16 @@ Conta de estudos `004009722521` (alias `wyller-estudos`), região padrão `us-ea
 - **Nunca mexa no acesso humano:** root, `readonly-user` (chaves, policies, MFA), budget e billing.
 - Ler: use o MCP `aws-api` (só leitura) ou `aws ... describe/list/get` com o profile default.
 - Documentação: use o MCP `aws-knowledge` antes de responder de memória. Cite o link.
-- Apagar: só pela skill `/aws-limpar`. Nada de `delete-*` avulso.
+- Apagar: o caminho principal é `terraform destroy`, que o usuário roda com `aws-lab`. Antes, rode `terraform plan -destroy` com o profile default e confira o que sai. Para o que ficou fora do state (criado no console, apply que falhou no meio), use a skill `/aws-limpar`. Nada de `delete-*` avulso.
+- Depois de qualquer limpeza, rode `scripts/inventario.sh` para confirmar que não sobrou nada cobrando.
 
 ## Identidades
 
 | Profile | Identidade | Pode |
 |---|---|---|
 | `default` | `readonly-user` | ler; tem também `CustomS3CreateBucket`/`DeleteBucket` (é acesso humano) |
-| `cleanup` | `claude-cleanup-role` | ler e apagar; sessão de 1h; nega identidades protegidas e billing |
+| `cleanup` | `claude-cleanup-role` | ler e apagar; sessão de 1h; nega identidades protegidas, `lab-s3-read-role` e billing |
+| `lab` | `terraform-lab-role` | criar (PowerUser + roles `lab-*`); exige MFA; **só o usuário usa**, via `aws-lab` |
 
 ## Ajudando nos estudos
 
