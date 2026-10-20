@@ -12,6 +12,42 @@ provider "aws" {
   region = "us-east-1"
 }
 
+# Mudar tamanho/IOPS/throughput num apply vira modify-volume: depois dele o volume
+# só aceita outra modificação após 6 h, e o tamanho não pode diminuir.
+variable "volume_size" {
+  description = "Tamanho do gp3 de dados, em GiB"
+  type        = number
+  default     = 20
+}
+
+variable "volume_iops" {
+  description = "IOPS do gp3 (3000 inclusos no preço)"
+  type        = number
+  default     = 3000
+
+  validation {
+    condition     = var.volume_iops >= 3000 && var.volume_iops <= 500 * var.volume_size
+    error_message = "gp3: IOPS entre 3000 e 500 por GiB do volume."
+  }
+}
+
+variable "volume_throughput" {
+  description = "Throughput do gp3, em MiB/s (125 inclusos no preço)"
+  type        = number
+  default     = 125
+
+  validation {
+    condition     = var.volume_throughput >= 125 && var.volume_throughput <= var.volume_iops / 4
+    error_message = "gp3: throughput entre 125 MiB/s e 0,25 MiB/s por IOPS."
+  }
+}
+
+variable "instance_type" {
+  description = "Tipo da EC2; os limites de EBS dela vêm de describe-instance-types"
+  type        = string
+  default     = "t3.micro"
+}
+
 data "aws_availability_zones" "available" {
   state = "available"
 }
@@ -19,10 +55,10 @@ data "aws_availability_zones" "available" {
 resource "aws_ebs_volume" "lab" {
   availability_zone = data.aws_availability_zones.available.names[0]
 
-  size       = 20
+  size       = var.volume_size
   type       = "gp3"
-  iops       = 3000
-  throughput = 125
+  iops       = var.volume_iops
+  throughput = var.volume_throughput
   encrypted  = true
 
   tags = {
@@ -66,30 +102,9 @@ data "aws_subnet" "lab" {
   default_for_az    = true
 }
 
-# Role para Session Manager
-resource "aws_iam_role" "ec2_ssm" {
-  name = "lab-storage-ec2-ssm"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
-      Principal = {
-        Service = "ec2.amazonaws.com"
-      }
-    }]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "ssm" {
-  role       = aws_iam_role.ec2_ssm.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
-
-resource "aws_iam_instance_profile" "lab" {
+# Profile do SSM, criado em terraform/iam-compartilhado (fica entre os dias)
+data "aws_iam_instance_profile" "lab" {
   name = "lab-storage-ec2-profile"
-  role = aws_iam_role.ec2_ssm.name
 }
 
 resource "aws_security_group" "lab" {
@@ -107,11 +122,11 @@ resource "aws_security_group" "lab" {
 
 resource "aws_instance" "lab" {
   ami                    = data.aws_ami.ubuntu.id
-  instance_type          = "t3.micro"
+  instance_type          = var.instance_type
   subnet_id              = data.aws_subnet.lab.id
   vpc_security_group_ids = [aws_security_group.lab.id]
 
-  iam_instance_profile = aws_iam_instance_profile.lab.name
+  iam_instance_profile = data.aws_iam_instance_profile.lab.name
 
   associate_public_ip_address = true
 

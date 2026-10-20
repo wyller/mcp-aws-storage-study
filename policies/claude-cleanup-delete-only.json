@@ -130,7 +130,9 @@
       ],
       "Resource": [
         "arn:aws:iam::004009722521:role/lab-s3-read-role",
-        "arn:aws:iam::004009722521:instance-profile/lab-s3-read-role"
+        "arn:aws:iam::004009722521:instance-profile/lab-s3-read-role",
+        "arn:aws:iam::004009722521:role/lab-storage-ec2-ssm",
+        "arn:aws:iam::004009722521:instance-profile/lab-storage-ec2-profile"
       ]
     },
     {

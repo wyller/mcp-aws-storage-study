@@ -1,6 +1,6 @@
 # EBS gp3: Dia 1, benchmark com fio (2026-10-19)
 
-Código: `terraform/ebs/gp3-3000IOPS-125mibToSecondtroiughput.tf`. Para subir de novo: `aws-lab` e depois `terraform apply`.
+Código: `terraform/ebs/LAB-DIA-1-gp3-3000IOPS-125mibToSecondtroiughput.tf`. Desde o Dia 2, a role e o instance profile do SSM ficam em `terraform/iam-compartilhado` (aplicar antes) e o volume/EC2 aceitam variáveis (`volume_size`, `volume_iops`, `volume_throughput`, `instance_type`).
 
 ## O que foi criado (us-east-1, us-east-1a)
 

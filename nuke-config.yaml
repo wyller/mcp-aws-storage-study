@@ -48,6 +48,8 @@ presets:
         - "terraform-lab-role"
         # Role de lab reaproveitada entre os dias (EC2 lendo S3); fica, ao contrário das outras lab-*.
         - "lab-s3-read-role"
+        # Role do SSM dos labs de EC2 (stack terraform/iam-compartilhado); também fica.
+        - "lab-storage-ec2-ssm"
       IAMRolePolicyAttachment:
         - property: RoleName
           value: "claude-cleanup-role"
@@ -55,11 +57,16 @@ presets:
           value: "terraform-lab-role"
         - property: RoleName
           value: "lab-s3-read-role"
+        - property: RoleName
+          value: "lab-storage-ec2-ssm"
       IAMInstanceProfile:
         - "lab-s3-read-role"
+        - "lab-storage-ec2-profile"
       IAMInstanceProfileRole:
         - property: InstanceProfile
           value: "lab-s3-read-role"
+        - property: InstanceProfile
+          value: "lab-storage-ec2-profile"
       IAMRolePolicy:
         - property: "role:RoleName"
           value: "claude-cleanup-role"
