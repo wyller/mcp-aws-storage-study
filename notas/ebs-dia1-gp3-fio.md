@@ -1,6 +1,6 @@
 # EBS gp3: Dia 1, benchmark com fio (2026-10-19)
 
-Código: `terraform/ebs/LAB-DIA-1-gp3-3000IOPS-125mibToSecondtroiughput.tf`. Desde o Dia 2, a role e o instance profile do SSM ficam em `terraform/iam-compartilhado` (aplicar antes) e o volume/EC2 aceitam variáveis (`volume_size`, `volume_iops`, `volume_throughput`, `instance_type`).
+Código: `terraform/ebs/LAB-DIA-1-gp3-3000IOPS-125mibToSecondtroiughput.tf`. Desde a parte 2 (2026-10-20), a role e o instance profile do SSM ficam em `terraform/iam-compartilhado` (aplicar antes) e o volume/EC2 aceitam variáveis (`volume_size`, `volume_iops`, `volume_throughput`, `instance_type`).
 
 ## O que foi criado (us-east-1, us-east-1a)
 
@@ -47,6 +47,8 @@ Lab inteiro: ~US$ 0,02/h. O que pega desprevenido é o volume de dados com `Dele
 - **Lição de troubleshooting**: aumentar o QD só ajuda quando o gargalo é latência (blocos pequenos e QD baixo). Quando o gargalo é vazão, aumentar o QD só piora a latência.
 
 ### Gargalo: ainda não isolado
+
+> Isolado na parte 2: [ebs-dia1-parte2-limite-instancia.md](ebs-dia1-parte2-limite-instancia.md). Era o volume; com o volume em 400 MiB/s, a t3.micro passou a limitar.
 
 ~128 MiB/s bate com dois limites ao mesmo tempo:
 

@@ -12,8 +12,9 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# Mudar tamanho/IOPS/throughput num apply vira modify-volume: depois dele o volume
-# só aceita outra modificação após 6 h, e o tamanho não pode diminuir.
+# Mudar tamanho/IOPS/throughput num apply vira modify-volume: até 4 por volume numa
+# janela móvel de 24 h, cada uma só depois da anterior chegar a "completed".
+# O tamanho não pode diminuir.
 variable "volume_size" {
   description = "Tamanho do gp3 de dados, em GiB"
   type        = number
@@ -96,9 +97,11 @@ data "aws_vpc" "default" {
   default = true
 }
 
-# Subnet na mesma AZ do EBS
+# Subnet na mesma AZ do EBS. Lê a AZ da mesma fonte do volume, e não do volume:
+# referenciar o recurso adia este data source para o apply quando o volume muda,
+# e o subnet_id "known after apply" força o replace da EC2.
 data "aws_subnet" "lab" {
-  availability_zone = aws_ebs_volume.lab.availability_zone
+  availability_zone = data.aws_availability_zones.available.names[0]
   default_for_az    = true
 }
 
