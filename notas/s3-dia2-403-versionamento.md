@@ -103,7 +103,7 @@ O código foi alterado para `noncurrent_days = 30`, rodou-se só o `terraform pl
 
 - `terraform validate`: `Success! The configuration is valid.`
 - `terraform plan -refresh=false` (como `readonly-user`): `No changes. ... found no differences`.
-- O usuário relatou o próprio `terraform plan` com `No changes`.
+- `terraform plan` com **refresh normal**, executado pelo usuário como **`terraform-lab-role`** (`aws-lab`): bem-sucedido, `No changes` (relatado). O refresh lê `restricted/hello.txt` sem erro, porque o Deny da bucket policy atinge só o `readonly-user`. É a contraprova do 403 que o plan como `readonly-user` deu no refresh.
 
 ## Avaliação teórica
 
@@ -125,16 +125,29 @@ Preços: https://aws.amazon.com/s3/pricing/
 - **O inventário nunca contou bucket S3.** O client era criado com a região `"global"`, que monta o endpoint inexistente `s3.global.amazonaws.com`. O `EndpointConnectionError` estava na lista de erros ignorados (a de serviço indisponível numa região), então a checagem virava 0. Com o bucket na conta, o inventário dizia `LIMPO`. Corrigido em `89a2506` (`ListBuckets` em us-east-1 lista todas as regiões). Os "LIMPO" de antes não cobriam S3.
 - **Código migrado para inglês** (`1e579b2`), como teste de estudo. Os `notas/` continuam em português. A tag `pt-br` marca o estado anterior.
 
-## Limpeza (pendente)
+## Limpeza (concluída em 2026-10-21)
 
-O bucket ainda existe, com 6 versões. `versioning/relatorio.txt` foi criado pela CLI e está fora do state, então o `terraform destroy` vai falhar com `BucketNotEmpty` até ele ser esvaziado. O caminho:
+**Antes da limpeza**, o bucket tinha 6 versões: as 4 de `versioning/relatorio.txt`, criadas pela CLI e fora do state, e uma de cada objeto do Terraform (`public/hello.txt` e `restricted/hello.txt`). O `terraform validate` passou e o `terraform plan` deu `No changes` (ver Validação final).
 
-1. `terraform plan -destroy -refresh=false` como `readonly-user`, para conferir o que sai.
-2. Esvaziar as versões que estão fora do state (`list-object-versions` → `delete-objects`). A alternativa é `terraform apply -var force_destroy=true`.
-3. `terraform destroy` com `aws-lab`.
-4. `scripts/inventory.sh`, que agora conta S3, deve dar `CLEAN`.
+Executado pelo usuário com `aws-lab` (relatado):
+
+1. **Exclusão das 6 versões** pelo `version-id`, o que apaga de vez e não cria delete marker.
+2. **Conferência:** `list-object-versions` devolveu `Versions: null` e `DeleteMarkers: null`. O bucket ficou vazio de verdade, sem nada escondido atrás de um marker.
+3. **`terraform destroy`:** `Destroy complete! Resources: 7 destroyed`.
+4. **`aws s3api list-buckets`**, filtrado pelo bucket do Dia 2: `[]`.
+5. **IAM compartilhado fora da destruição:** o stack `terraform/s3` não referencia `terraform/iam-compartilhado` nem as roles compartilhadas (`lab-s3-read-role`, `lab-storage-ec2-ssm`, `terraform-lab-role`, `claude-cleanup-role`).
+
+Verificado localmente: o `terraform state list` de `terraform/s3` está **vazio**.
+
+### Por que 9 no apply e 7 no destroy
+
+O apply criou 9 recursos: o bucket, o public access block, o ownership controls, o versionamento, a criptografia, o lifecycle, a policy e os **2 objetos**. A exclusão manual das 6 versões incluiu as versões desses 2 objetos. No refresh do destroy, o Terraform viu que eles já não existiam e os tirou do state sem contá-los como destruídos. Sobraram 7 recursos para destruir de fato. Os data sources (`aws_caller_identity` e `aws_iam_policy_document`) não contam em nenhum dos dois números.
+
+Esvaziar antes foi o que evitou o `BucketNotEmpty`: o `relatorio.txt` estava fora do state, e o `force_destroy` estava em `false`.
+
+**Pendente:** o `scripts/inventory.sh` em todas as regiões ainda não foi rodado depois da limpeza. É o último passo da regra do repo, e desde o `89a2506` ele também conta S3.
 
 ## Próximo
 
-- Se houver tempo: os 403 que ficaram fora (KMS sem `kms:Decrypt`, e a endpoint policy de um gateway endpoint de S3), o que exige EC2.
-- Lifecycle de transição para IA e Glacier, com a duração mínima e o mínimo de 128 KiB.
+- **Dia 3: EBS snapshots, restore e o primeiro acesso lento**, conforme o [plano](plano-proximos-dias.md).
+- **Adiado de propósito:** KMS vai ser estudado separadamente, e só depois o S3 volta com SSE-KMS (o 403 por falta de `kms:Decrypt`), junto com a endpoint policy do gateway endpoint e o lifecycle de transição. Ver "Depois" no plano.

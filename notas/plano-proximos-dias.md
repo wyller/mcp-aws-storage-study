@@ -19,6 +19,7 @@
 - **Como cobra:** GB-mês por classe, requisição (PUT custa ~10 vezes mais que GET), transferência para a internet, duração mínima e taxa de recuperação nas classes IA e Glacier.
 - **Custo do lab:** < US$ 0,05 (EC2 por ~2 h e alguns MB no S3).
 - **Limpeza:** versões e delete markers seguram o bucket (o `rb` falha se não esvaziar todas as versões).
+- **Feito em 2026-10-21** ([nota](s3-dia2-403-versionamento.md)): sem EC2, KMS nem endpoint. O 403 ficou entre o IAM e a bucket policy (deny explícito, deny implícito, 403 no lugar do 404 sem `ListBucket`), além do versionamento com delete marker, da recuperação de versão e da auditoria do lifecycle. As causas KMS e endpoint, a EC2 com a `lab-s3-read-role` e o lifecycle para IA/Glacier ficaram para o bloco "S3 + KMS", em "Depois".
 
 ## Dia 3: EBS snapshots, restore e o primeiro acesso lento
 
@@ -45,6 +46,11 @@
 - **Limpeza:** os recovery points precisam ser apagados antes do vault. Vault Lock **não** pode ser habilitado num lab.
 
 ## Depois (com custo a avaliar antes)
+
+Decisão de 2026-10-21: KMS é estudado **separadamente** e antes. O S3 volta depois, já com KMS.
+
+- **KMS por conta própria:** chave gerenciada pelo cliente, key policy contra IAM (a key policy precisa liberar a conta), grants, rotação e `ScheduleKeyDeletion` (7 a 30 dias). **Como cobra:** US$ 1/mês por chave, proporcional por hora, mesmo sem uso; requisições de API além do free tier; a rotação soma US$ 1/mês na 1ª e na 2ª; chave em `PendingDeletion` não cobra ([pricing](https://aws.amazon.com/kms/pricing/)). Um lab de algumas horas sai por centavos, desde que a chave seja agendada para deleção no fim.
+- **S3 + KMS (volta ao Dia 2):** SSE-KMS e o 403 por falta de `kms:Decrypt`/`GenerateDataKey` (a assinatura do erro é diferente da bucket policy), Bucket Key para reduzir as chamadas ao KMS, EC2 com a `lab-s3-read-role`, gateway endpoint de S3 (grátis) com endpoint policy contra NAT (pago), e lifecycle para IA e Glacier (duração mínima e mínimo de 128 KiB).
 
 - **FSx for Lustre:** o mínimo é de 1,2 TiB, ~US$ 0,20/h por algumas horas. Só com orçamento definido.
 - **DataSync e Storage Gateway:** o gateway tem VM ou EC2 de porte maior e cobra por GB transferido. Planejar à parte.
