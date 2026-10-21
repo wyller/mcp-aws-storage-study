@@ -94,7 +94,9 @@ def main():
     ec2 = session.client("ec2", region_name="us-east-1", config=CFG)
     regioes = [r["RegionName"] for r in ec2.describe_regions()["Regions"]]
 
-    tarefas = [("global", "S3 bucket", simples("s3", "list_buckets", "Buckets"))]
+    # ListBuckets em us-east-1 devolve os buckets de todas as regiões. Uma região falsa como "global"
+    # monta um endpoint inexistente, e o EndpointConnectionError cai no IGNORAR e vira 0.
+    tarefas = [("us-east-1", "S3 bucket (todas as regiões)", simples("s3", "list_buckets", "Buckets"))]
     tarefas += [(r, rotulo, fn) for r in regioes for rotulo, fn in CHECAGENS]
 
     with ThreadPoolExecutor(max_workers=int(os.environ.get("INVENTARIO_PARALELO", "32"))) as ex:
