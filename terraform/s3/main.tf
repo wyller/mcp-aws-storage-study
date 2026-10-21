@@ -13,24 +13,24 @@ provider "aws" {
   default_tags {
     tags = {
       Environment = "lab"
-      Projeto     = "storage-study"
-      Dia         = "2-s3"
+      Project     = "storage-study"
+      Day         = "2-s3"
     }
   }
 }
 
-# Sem EC2, KMS nem endpoint neste bloco: o 403 é provocado com as identidades que já
-# existem. O readonly-user (ReadOnlyAccess) é o "cliente" e a terraform-lab-role é o admin.
-# Nada de IAM é criado ou alterado: todo o cenário fica na bucket policy.
+# No EC2, KMS or endpoint in this block: the 403 is triggered with identities that already
+# exist. readonly-user (ReadOnlyAccess) is the "client" and terraform-lab-role is the admin.
+# No IAM is created or changed: the whole scenario lives in the bucket policy.
 
-variable "negar_list_readonly" {
-  description = "Nega s3:ListBucket ao readonly-user neste bucket (o 404 de objeto inexistente vira 403)"
+variable "deny_list_to_readonly" {
+  description = "Deny s3:ListBucket to readonly-user on this bucket (a missing object's 404 becomes 403)"
   type        = bool
   default     = false
 }
 
 variable "force_destroy" {
-  description = "Deixa o destroy apagar todas as versões e delete markers. Só vale depois de um apply com true."
+  description = "Let destroy delete every version and delete marker. Only takes effect after an apply with true."
   type        = bool
   default     = false
 }
@@ -43,7 +43,8 @@ locals {
 }
 
 resource "aws_s3_bucket" "lab" {
-  # Nome global: o ID da conta evita colisão sem precisar do provider random.
+  # Global name: the account ID avoids collisions without the random provider.
+  # Renaming a bucket forces a replace, so the name stays as first applied.
   bucket        = "lab-s3-dia2-${local.account_id}"
   force_destroy = var.force_destroy
 
@@ -61,7 +62,7 @@ resource "aws_s3_bucket_public_access_block" "lab" {
   restrict_public_buckets = true
 }
 
-# ACLs desligadas: só as policies decidem o acesso (já é o padrão desde 2023; aqui fica explícito).
+# ACLs disabled: only policies decide access (the default since 2023; explicit here).
 resource "aws_s3_bucket_ownership_controls" "lab" {
   bucket = aws_s3_bucket.lab.id
 
@@ -78,7 +79,7 @@ resource "aws_s3_bucket_versioning" "lab" {
   }
 }
 
-# SSE-S3 (AES256): sem chave KMS, sem custo por requisição de criptografia.
+# SSE-S3 (AES256): no KMS key, no per-request encryption cost.
 resource "aws_s3_bucket_server_side_encryption_configuration" "lab" {
   bucket = aws_s3_bucket.lab.id
 
@@ -89,13 +90,13 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "lab" {
   }
 }
 
-# Rede de segurança caso o destroy fique para depois: versões antigas e uploads
-# incompletos cobram GB-mês mesmo sem aparecer no `aws s3 ls`.
+# Safety net in case the destroy is postponed: old versions and incomplete uploads
+# are billed per GB-month even though `aws s3 ls` doesn't show them.
 resource "aws_s3_bucket_lifecycle_configuration" "lab" {
   bucket = aws_s3_bucket.lab.id
 
   rule {
-    id     = "limpa-versoes-antigas"
+    id     = "expire-old-versions"
     status = "Enabled"
     filter {}
 
@@ -103,14 +104,14 @@ resource "aws_s3_bucket_lifecycle_configuration" "lab" {
       noncurrent_days = 1
     }
 
-    # Delete marker sem nenhuma versão por baixo não serve para nada; o lifecycle o remove.
+    # A delete marker with no versions under it is useless; lifecycle removes it.
     expiration {
       expired_object_delete_marker = true
     }
   }
 
   rule {
-    id     = "aborta-multipart"
+    id     = "abort-multipart"
     status = "Enabled"
     filter {}
 
@@ -124,7 +125,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "lab" {
 
 data "aws_iam_policy_document" "bucket" {
   statement {
-    sid     = "NegaSemTLS"
+    sid     = "DenyInsecureTransport"
     effect  = "Deny"
     actions = ["s3:*"]
     resources = [
@@ -144,12 +145,12 @@ data "aws_iam_policy_document" "bucket" {
     }
   }
 
-  # Cenário do 403 por deny explícito: o IAM do readonly-user permite s3:Get*, a bucket policy nega.
+  # Explicit-deny 403: readonly-user's IAM allows s3:Get*, the bucket policy denies it.
   statement {
-    sid       = "NegaRestritoAoReadonly"
+    sid       = "DenyRestrictedToReadonly"
     effect    = "Deny"
     actions   = ["s3:GetObject", "s3:GetObjectVersion"]
-    resources = ["${aws_s3_bucket.lab.arn}/restrito/*"]
+    resources = ["${aws_s3_bucket.lab.arn}/restricted/*"]
 
     principals {
       type        = "AWS"
@@ -157,12 +158,12 @@ data "aws_iam_policy_document" "bucket" {
     }
   }
 
-  # Cenário do 403 que esconde um 404: sem ListBucket, objeto inexistente responde 403.
+  # 403 hiding a 404: without ListBucket, a missing object answers 403.
   dynamic "statement" {
-    for_each = var.negar_list_readonly ? [1] : []
+    for_each = var.deny_list_to_readonly ? [1] : []
 
     content {
-      sid       = "NegaListAoReadonly"
+      sid       = "DenyListToReadonly"
       effect    = "Deny"
       actions   = ["s3:ListBucket"]
       resources = [aws_s3_bucket.lab.arn]
@@ -182,21 +183,21 @@ resource "aws_s3_bucket_policy" "lab" {
   depends_on = [aws_s3_bucket_public_access_block.lab]
 }
 
-# Objetos fixos do Terraform. O teste de versionamento usa outra chave (versionamento/),
-# criada pela CLI, para o Terraform não ver drift nem reverter as versões.
-resource "aws_s3_object" "publico" {
+# Objects owned by Terraform. The versioning test uses another key (versioning/),
+# created by the CLI, so Terraform sees no drift and doesn't revert the versions.
+resource "aws_s3_object" "public" {
   bucket       = aws_s3_bucket.lab.id
-  key          = "publico/ola.txt"
-  content      = "lab dia 2: objeto liberado para o readonly-user\n"
+  key          = "public/hello.txt"
+  content      = "lab day 2: object allowed for readonly-user\n"
   content_type = "text/plain"
 
   depends_on = [aws_s3_bucket_versioning.lab]
 }
 
-resource "aws_s3_object" "restrito" {
+resource "aws_s3_object" "restricted" {
   bucket       = aws_s3_bucket.lab.id
-  key          = "restrito/ola.txt"
-  content      = "lab dia 2: objeto negado ao readonly-user pela bucket policy\n"
+  key          = "restricted/hello.txt"
+  content      = "lab day 2: object denied to readonly-user by the bucket policy\n"
   content_type = "text/plain"
 
   depends_on = [aws_s3_bucket_versioning.lab]

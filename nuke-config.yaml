@@ -1,13 +1,13 @@
-# aws-nuke v3 — limpeza da conta de estudos.
-# Tudo que NÃO casa com um filtro abaixo é apagado, em todas as regiões habilitadas.
-# A policy da claude-cleanup-role nega de qualquer forma mexer nos itens protegidos;
-# estes filtros só evitam tentativas (e ruído de AccessDenied).
+# aws-nuke v3 — cleanup of the study account.
+# Everything that does NOT match a filter below is deleted, in every enabled region.
+# The claude-cleanup-role policy denies touching the protected items anyway;
+# these filters only avoid attempts (and AccessDenied noise).
 
-# Obrigatório ter ≥1 conta bloqueada. Conta fictícia: a trava real é o alias abaixo.
+# At least 1 blocked account is required. Fake account: the real lock is the alias below.
 blocklist:
   - "999999999999"
 
-# Recusa rodar se o alias da conta contiver algum destes termos (além do padrão "prod").
+# Refuses to run if the account alias contains any of these terms (besides the default "prod").
 blocklist-terms:
   - "prod"
   - "production"
@@ -17,13 +17,13 @@ regions:
   - all
 
 accounts:
-  "004009722521": # alias esperado: wyller-estudos
+  "004009722521": # expected alias: wyller-estudos
     presets:
-      - acesso-humano
+      - human-access
       - vpc-default
 
 presets:
-  acesso-humano:
+  human-access:
     filters:
       IAMUser:
         - "readonly-user"
@@ -39,16 +39,16 @@ presets:
       IAMUserMFADevice:
         - property: UserName
           value: "readonly-user"
-      # Inclui o MFA do root.
+      # Includes the root MFA.
       IAMVirtualMFADevice:
         - type: glob
           value: "*"
       IAMRole:
         - "claude-cleanup-role"
         - "terraform-lab-role"
-        # Role de lab reaproveitada entre os dias (EC2 lendo S3); fica, ao contrário das outras lab-*.
+        # Lab role reused between days (EC2 reading S3); it stays, unlike the other lab-* roles.
         - "lab-s3-read-role"
-        # Role do SSM dos labs de EC2 (stack terraform/iam-compartilhado); também fica.
+        # SSM role for the EC2 labs (terraform/iam-compartilhado stack); it stays too.
         - "lab-storage-ec2-ssm"
       IAMRolePolicyAttachment:
         - property: RoleName
@@ -81,7 +81,7 @@ presets:
         - property: Name
           value: "My Monthly Cost Budget"
 
-  # VPCs default não custam nada e são pré-requisito de EC2/EFS/DataSync rápidos.
+  # Default VPCs cost nothing and are a prerequisite for quick EC2/EFS/DataSync labs.
   vpc-default:
     filters:
       EC2VPC:
@@ -108,11 +108,11 @@ presets:
 
 resource-types:
   excludes:
-    # S3Bucket já esvazia o bucket (objetos e versões); listar objeto a objeto só deixa lento.
+    # S3Bucket already empties the bucket (objects and versions); listing object by object only slows it down.
     - S3Object
-    # Configuração da conta, não recurso de estudo.
+    # Account setting, not a study resource.
     - IAMAccountSettingPasswordPolicy
-    # Service-linked roles: a AWS gerencia; IAMRole já as ignora por padrão.
+    # Service-linked roles: AWS manages them; IAMRole already ignores them by default.
 
 settings:
   EC2Instance:

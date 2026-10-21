@@ -1,9 +1,9 @@
 .venv/
-.claude/estado/
+.claude/state/
 .claude/settings.local.json
 __pycache__/
 
-# Terraform: providers baixados e state (o state tem IDs e pode ter segredos). O .terraform.lock.hcl vai pro git.
+# Terraform: downloaded providers and state (state holds IDs and may hold secrets). .terraform.lock.hcl goes to git.
 .terraform/
 *.tfstate
 *.tfstate.*

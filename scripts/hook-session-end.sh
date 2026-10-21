@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# SessionEnd: dispara o inventário em segundo plano (não segura o fechamento do Claude Code).
-# O resultado é lido pelo hook de SessionStart na próxima sessão.
+# SessionEnd: starts the inventory in the background (doesn't hold up Claude Code's exit).
+# The SessionStart hook reads the result in the next session.
 dir="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
-estado="$dir/.claude/estado"
-mkdir -p "$estado"
+state="$dir/.claude/state"
+mkdir -p "$state"
 
 setsid nohup bash -c '
-  out="$1/ultimo-inventario.txt"
-  { echo "# inventário de $(date "+%Y-%m-%d %H:%M")"; "$2/scripts/inventario.sh"; } > "$out.tmp" 2>&1 \
+  out="$1/last-inventory.txt"
+  { echo "# inventory of $(date "+%Y-%m-%d %H:%M")"; "$2/scripts/inventory.sh"; } > "$out.tmp" 2>&1 \
     && mv "$out.tmp" "$out"
-' _ "$estado" "$dir" >/dev/null 2>&1 < /dev/null &
+' _ "$state" "$dir" >/dev/null 2>&1 < /dev/null &
 exit 0

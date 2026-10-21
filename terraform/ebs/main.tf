@@ -12,39 +12,39 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# Mudar tamanho/IOPS/throughput num apply vira modify-volume: até 4 por volume numa
-# janela móvel de 24 h, cada uma só depois da anterior chegar a "completed".
-# O tamanho não pode diminuir.
+# Changing size/IOPS/throughput in an apply becomes a modify-volume: up to 4 per volume in a
+# rolling 24 h window, each one only after the previous one reaches "completed".
+# Size can't shrink.
 variable "volume_size" {
-  description = "Tamanho do gp3 de dados, em GiB"
+  description = "Size of the gp3 data volume, in GiB"
   type        = number
   default     = 20
 }
 
 variable "volume_iops" {
-  description = "IOPS do gp3 (3000 inclusos no preço)"
+  description = "gp3 IOPS (3000 included in the price)"
   type        = number
   default     = 3000
 
   validation {
     condition     = var.volume_iops >= 3000 && var.volume_iops <= 500 * var.volume_size
-    error_message = "gp3: IOPS entre 3000 e 500 por GiB do volume."
+    error_message = "gp3: IOPS between 3000 and 500 per GiB of volume."
   }
 }
 
 variable "volume_throughput" {
-  description = "Throughput do gp3, em MiB/s (125 inclusos no preço)"
+  description = "gp3 throughput, in MiB/s (125 included in the price)"
   type        = number
   default     = 125
 
   validation {
     condition     = var.volume_throughput >= 125 && var.volume_throughput <= var.volume_iops / 4
-    error_message = "gp3: throughput entre 125 MiB/s e 0,25 MiB/s por IOPS."
+    error_message = "gp3: throughput between 125 MiB/s and 0.25 MiB/s per IOPS."
   }
 }
 
 variable "instance_type" {
-  description = "Tipo da EC2; os limites de EBS dela vêm de describe-instance-types"
+  description = "EC2 instance type; its EBS limits come from describe-instance-types"
   type        = string
   default     = "t3.micro"
 }
@@ -73,7 +73,7 @@ output "volume_id" {
 }
 
 
-#---------------- ec2 para usar o ebs volume ----------------
+#---------------- EC2 that uses the EBS volume ----------------
 
 
 # AMI Ubuntu 24.04 LTS
@@ -92,20 +92,20 @@ data "aws_ami" "ubuntu" {
   }
 }
 
-# VPC padrão
+# Default VPC
 data "aws_vpc" "default" {
   default = true
 }
 
-# Subnet na mesma AZ do EBS. Lê a AZ da mesma fonte do volume, e não do volume:
-# referenciar o recurso adia este data source para o apply quando o volume muda,
-# e o subnet_id "known after apply" força o replace da EC2.
+# Subnet in the same AZ as the EBS volume. Reads the AZ from the volume's source, not from the volume:
+# referencing the resource defers this data source to apply time when the volume changes,
+# and a "known after apply" subnet_id forces the EC2 to be replaced.
 data "aws_subnet" "lab" {
   availability_zone = data.aws_availability_zones.available.names[0]
   default_for_az    = true
 }
 
-# Profile do SSM, criado em terraform/iam-compartilhado (fica entre os dias)
+# SSM profile, created in terraform/iam-compartilhado (kept between days)
 data "aws_iam_instance_profile" "lab" {
   name = "lab-storage-ec2-profile"
 }
@@ -144,7 +144,7 @@ resource "aws_instance" "lab" {
   }
 }
 
-# Anexar EBS existente à EC2
+# Attach the existing EBS volume to the EC2
 resource "aws_volume_attachment" "lab" {
   device_name = "/dev/sdf"
   volume_id   = aws_ebs_volume.lab.id

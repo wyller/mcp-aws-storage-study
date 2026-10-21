@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# SessionStart: injeta no contexto do Claude o último inventário de recursos que custam,
-# e dispara um novo em segundo plano para a próxima vez.
+# SessionStart: injects the last inventory of billable resources into Claude's context,
+# and starts a new one in the background for next time.
 dir="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
-inv="$dir/.claude/estado/ultimo-inventario.txt"
+inv="$dir/.claude/state/last-inventory.txt"
 
 if [[ -f "$inv" ]]; then
-  if grep -qx "LIMPO" "$inv"; then
-    echo "Inventário AWS: conta limpa no último fechamento de sessão ($(head -1 "$inv" | sed 's/^# //'))."
+  if grep -qx "CLEAN" "$inv"; then
+    echo "AWS inventory: account clean at the last session close ($(head -1 "$inv" | sed 's/^# //'))."
   else
-    echo "ATENÇÃO — recursos AWS que podem estar custando (avise o usuário logo no início e sugira /aws-limpar):"
+    echo "WARNING — AWS resources that may be costing money (tell the user right at the start and suggest /aws-cleanup):"
     cat "$inv"
   fi
 else
-  echo "Inventário AWS: ainda não há inventário salvo (rode scripts/inventario.sh para ver o estado atual)."
+  echo "AWS inventory: no saved inventory yet (run scripts/inventory.sh to see the current state)."
 fi
 
-echo "Para criar recursos (Terraform/CLI): rode aws-lab no seu terminal; pede o MFA e vale 1h. aws-lab-off volta ao readonly."
+echo "To create resources (Terraform/CLI): run aws-lab in your terminal; it asks for MFA and lasts 1h. aws-lab-off goes back to readonly."
 
 "$dir/scripts/hook-session-end.sh"
 exit 0

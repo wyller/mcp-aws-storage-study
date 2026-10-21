@@ -1,33 +1,40 @@
-# Estudos de storage na AWS
+# AWS storage studies
 
-Conta de estudos `004009722521` (alias `wyller-estudos`), região padrão `us-east-1`. O objetivo é prática para entrevistas e trabalho DevOps: troubleshooting real e noção de custo. Não é decoreba de certificação.
+Study account `004009722521` (alias `wyller-estudos`), default region `us-east-1`. The goal is practice for DevOps interviews and work: real troubleshooting and a sense of cost. Not certification cramming.
 
-## Regras
+## Language
 
-- **Nunca crie, altere ou inicie nada na AWS.** Diagnostique (leia configs, logs, métricas e policies) e passe o comando ou o caminho no console. Quem executa é o usuário.
-- **Nunca mexa no acesso humano:** root, `readonly-user` (chaves, policies, MFA), budget e billing.
-- Ler: use o MCP `aws-api` (só leitura) ou `aws ... describe/list/get` com o profile default.
-- Documentação: use o MCP `aws-knowledge` antes de responder de memória. Cite o link.
-- Apagar: o caminho principal é `terraform destroy`, que o usuário roda com `aws-lab`. Antes, rode `terraform plan -destroy` com o profile default e confira o que sai. Para o que ficou fora do state (criado no console, apply que falhou no meio), use a skill `/aws-limpar`. Nada de `delete-*` avulso.
-- Depois de qualquer limpeza, rode `scripts/inventario.sh` para confirmar que não sobrou nada cobrando.
+- Code, comments, Terraform, scripts, skills and commit messages are in **English** (switched on 2026-10-21 as a study exercise; tag `pt-br` marks the state before it).
+- Talk to the user in **Brazilian Portuguese**. Keep AWS and Terraform terms in English.
+- `notas/` stays in Portuguese: those are the user's notes. Translate an existing note only if asked.
 
-## Identidades
+## Rules
 
-| Profile | Identidade | Pode |
+- **Never create, change or start anything in AWS.** Diagnose (read configs, logs, metrics and policies) and hand over the command or the console path. The user runs it.
+- **Never touch human access:** root, `readonly-user` (keys, policies, MFA), budget and billing.
+- Reading: use the `aws-api` MCP (read-only) or `aws ... describe/list/get` with the default profile.
+- Documentation: use the `aws-knowledge` MCP before answering from memory. Cite the link.
+- Deleting: the main path is `terraform destroy`, which the user runs with `aws-lab`. Before that, run `terraform plan -destroy` with the default profile and check what goes away. For what was left out of the state (created in the console, an apply that failed halfway), use the `/aws-cleanup` skill. No ad-hoc `delete-*`.
+- After any cleanup, run `scripts/inventory.sh` to confirm nothing billable is left.
+
+## Identities
+
+| Profile | Identity | Can |
 |---|---|---|
-| `default` | `readonly-user` | ler; tem também `CustomS3CreateBucket`/`DeleteBucket` (é acesso humano) |
-| `cleanup` | `claude-cleanup-role` | ler e apagar; sessão de 1h; nega identidades protegidas, `lab-s3-read-role` e billing |
-| `lab` | `terraform-lab-role` | criar (PowerUser + roles `lab-*`); exige MFA; **só o usuário usa**, via `aws-lab` |
+| `default` | `readonly-user` | read; also has `CustomS3CreateBucket`/`DeleteBucket` (it's human access) |
+| `cleanup` | `claude-cleanup-role` | read and delete; 1h session; denies protected identities, `lab-s3-read-role` and billing |
+| `lab` | `terraform-lab-role` | create (PowerUser + `lab-*` roles); requires MFA; **only the user uses it**, via `aws-lab` |
 
-## Ajudando nos estudos
+## Helping with the studies
 
-- Ao explicar um serviço, inclua **como ele cobra**: o que conta por hora, o que conta por GB e o que conta mesmo parado.
-- No troubleshooting, mostre o raciocínio: hipótese → comando que confirma → o que o resultado significa.
-- Anotações do usuário ficam em `notas/`. Proponha escrever lá quando surgir um aprendizado que vale guardar.
+- When explaining a service, include **how it bills**: what counts per hour, what counts per GB and what counts even when idle.
+- In troubleshooting, show the reasoning: hypothesis → command that confirms it → what the result means.
+- The user's notes live in `notas/`. Offer to write there when a lesson worth keeping comes up.
 
-## Arquivos
+## Files
 
-- `nuke-config.yaml`: o que a limpeza protege.
-- `policies/`: as policies da `claude-cleanup-role`, coladas pelo usuário no console.
-- `scripts/inventario.sh`: lista rápida do que custa em todas as regiões. Roda sozinho ao abrir e ao fechar a sessão.
-- `SETUP.md`: passos manuais do usuário no console.
+- `nuke-config.yaml`: what the cleanup protects.
+- `policies/`: the `claude-cleanup-role` policies, pasted by the user in the console. Kept byte-for-byte as in AWS (not translated).
+- `terraform/iam-compartilhado`: IAM shared between days; never destroyed, kept as is (not translated).
+- `scripts/inventory.sh`: quick list of what's billable in every region. Runs on its own when the session opens and closes.
+- `SETUP.md`: the user's manual steps in the console.
