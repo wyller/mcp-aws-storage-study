@@ -1,0 +1,53 @@
+{
+    "Versions": [
+        {
+            "Key": "public/hello.txt",
+            "VersionId": "XWaZX.mm4PBcy_rG8i97oenJFYa3qT97",
+            "IsLatest": true,
+            "Size": 44,
+            "LastModified": "2026-10-21T11:14:21+00:00",
+            "ETag": "\"11e80dcc1e05b1e8ee0155ac728f3ed9\""
+        },
+        {
+            "Key": "restricted/hello.txt",
+            "VersionId": "buElBQ8Yoi_O2Daaq_VNleOei1J8igVg",
+            "IsLatest": true,
+            "Size": 63,
+            "LastModified": "2026-10-21T11:14:21+00:00",
+            "ETag": "\"9a9598e41a9d6ddc68302e209d7837d0\""
+        },
+        {
+            "Key": "versioning/relatorio.txt",
+            "VersionId": "KrxDQGvFEX3fE9abO3a7LITi7k3sqngW",
+            "IsLatest": true,
+            "Size": 32,
+            "LastModified": "2026-10-21T12:32:29+00:00",
+            "ETag": "\"0a2cc0b046c13a699a5b279db00eaa82\""
+        },
+        {
+            "Key": "versioning/relatorio.txt",
+            "VersionId": "54OYrPS1UruFVQLioInQLlL3OPz.iiU2",
+            "IsLatest": false,
+            "Size": 50,
+            "LastModified": "2026-10-21T12:29:10+00:00",
+            "ETag": "\"46a63390cf0ed3d9c3da9476c77d678b\""
+        },
+        {
+            "Key": "versioning/relatorio.txt",
+            "VersionId": "F66JNRSmI3ziz3cDhZBcBYcfXjhSgS6n",
+            "IsLatest": false,
+            "Size": 32,
+            "LastModified": "2026-10-21T11:54:02+00:00",
+            "ETag": "\"0a2cc0b046c13a699a5b279db00eaa82\""
+        },
+        {
+            "Key": "versioning/relatorio.txt",
+            "VersionId": "QubBNt0m_iZTHszBFigKlpATnPPzID3U",
+            "IsLatest": false,
+            "Size": 32,
+            "LastModified": "2026-10-21T11:53:27+00:00",
+            "ETag": "\"b5fb0dcc714333c53b257cd64eb8c49d\""
+        }
+    ],
+    "DeleteMarkers": null
+}

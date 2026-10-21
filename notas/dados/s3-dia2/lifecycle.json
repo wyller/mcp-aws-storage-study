@@ -1,0 +1,28 @@
+{
+    "TransitionDefaultMinimumObjectSize": "all_storage_classes_128K",
+    "Rules": [
+        {
+            "Expiration": {
+                "ExpiredObjectDeleteMarker": true
+            },
+            "ID": "expire-old-versions",
+            "Filter": {
+                "Prefix": ""
+            },
+            "Status": "Enabled",
+            "NoncurrentVersionExpiration": {
+                "NoncurrentDays": 1
+            }
+        },
+        {
+            "ID": "abort-multipart",
+            "Filter": {
+                "Prefix": ""
+            },
+            "Status": "Enabled",
+            "AbortIncompleteMultipartUpload": {
+                "DaysAfterInitiation": 1
+            }
+        }
+    ]
+}
