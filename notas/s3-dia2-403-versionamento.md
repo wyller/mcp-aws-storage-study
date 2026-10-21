@@ -145,7 +145,11 @@ O apply criou 9 recursos: o bucket, o public access block, o ownership controls,
 
 Esvaziar antes foi o que evitou o `BucketNotEmpty`: o `relatorio.txt` estava fora do state, e o `force_destroy` estava em `false`.
 
-**Pendente:** o `scripts/inventory.sh` em todas as regiões ainda não foi rodado depois da limpeza. É o último passo da regra do repo, e desde o `89a2506` ele também conta S3.
+### Auditoria final (verificado em 2026-10-21, como `readonly-user`)
+
+- **`scripts/inventory.sh`** (todas as regiões, contando S3 desde o `89a2506`): **`CLEAN`**.
+- **Buckets `lab-*`:** `[]`.
+- **Roles `lab-*`:** só `lab-s3-read-role` e `lab-storage-ec2-ssm`, as duas compartilhadas e protegidas, que ficam entre os dias.
 
 ## Próximo
 
