@@ -158,3 +158,76 @@ output "instance_id" {
 output "public_ip" {
   value = aws_instance.lab.public_ip
 }
+
+
+#---------------- Day 3: snapshot and restore ----------------
+
+
+# Two separate applies, because the snapshot only makes sense after data is written on the EC2:
+#   1. create_snapshot = true      -> snapshot of the data volume (in the state, so destroy removes it)
+#   2. restore_from_snapshot = true -> new volume from that snapshot, attached as /dev/sdg
+# Snapshots bill per GB-month of changed blocks only; never archive one in a lab (90-day minimum).
+variable "create_snapshot" {
+  description = "Take a snapshot of the data volume"
+  type        = bool
+  default     = false
+}
+
+variable "restore_from_snapshot" {
+  description = "Create and attach a volume restored from the snapshot"
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.restore_from_snapshot || var.create_snapshot
+    error_message = "restore_from_snapshot needs create_snapshot = true."
+  }
+}
+
+resource "aws_ebs_snapshot" "lab" {
+  count = var.create_snapshot ? 1 : 0
+
+  volume_id   = aws_ebs_volume.lab.id
+  description = "Day 3: data volume after the fill"
+
+  tags = {
+    Name        = "lab-sre-storage-snap"
+    Environment = "lab"
+  }
+}
+
+# No volume_initialization_rate on purpose: the lab measures the default lazy loading from S3.
+# Setting it (100-300 MiB/s) bills per GB of snapshot data, like fast snapshot restore it is study-only.
+resource "aws_ebs_volume" "restored" {
+  count = var.restore_from_snapshot ? 1 : 0
+
+  availability_zone = aws_ebs_volume.lab.availability_zone
+  snapshot_id       = aws_ebs_snapshot.lab[0].id
+
+  size       = var.volume_size
+  type       = "gp3"
+  iops       = 3000
+  throughput = 125
+  encrypted  = true
+
+  tags = {
+    Name        = "lab-sre-storage-restored"
+    Environment = "lab"
+  }
+}
+
+resource "aws_volume_attachment" "restored" {
+  count = var.restore_from_snapshot ? 1 : 0
+
+  device_name = "/dev/sdg"
+  volume_id   = aws_ebs_volume.restored[0].id
+  instance_id = aws_instance.lab.id
+}
+
+output "snapshot_id" {
+  value = one(aws_ebs_snapshot.lab[*].id)
+}
+
+output "restored_volume_id" {
+  value = one(aws_ebs_volume.restored[*].id)
+}
