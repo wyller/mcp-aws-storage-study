@@ -34,7 +34,7 @@ docker pull public.ecr.aws/awslabs-mcp/awslabs/aws-api-mcp-server:1.5.6
 `terraform-lab-role` can't create IAM policies, and its PassRole only went to EC2. Replication needs a role that S3 assumes, so:
 
 5. **Replication policy:** IAM → *Policies* → *Create policy* → *JSON* → paste `policies/lab-s3-replication.json` → name `lab-s3-replication`.
-6. **Allow-list of the lab role:** IAM → *Policies* → `terraform-lab-iam-lab-roles` → *Edit* → *JSON* → paste `policies/terraform-lab-iam-lab-roles.proposed.json` → *Save changes* (it becomes the default version). Then, in the repo, the proposed file replaces `policies/terraform-lab-iam-lab-roles.json`, which stays byte-for-byte as in AWS.
+6. **Allow-list of the lab role:** IAM → *Policies* → `terraform-lab-iam-lab-roles` → *Edit* → *JSON* → paste `policies/terraform-lab-iam-lab-roles.json` → *Save changes* (it becomes the default version). Done on 2026-10-22 (v2); the repo file is the version in AWS.
 
 ## Check
 
