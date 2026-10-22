@@ -8,3 +8,5 @@ __pycache__/
 *.tfstate
 *.tfstate.*
 crash.log
+# Saved plans: binary snapshot of state and variables; applied once, never versioned.
+*.tfplan

@@ -57,7 +57,7 @@ Dimensões: `SourceBucket`, `DestinationBucket` e `RuleId=repl-prefix`. Consulta
 | 12:48 | **5** | **1** | **37** |
 
 - **O pico está em 12:48, não em 12:47.** O PUT de `repl/a.txt` foi às 12:47:56; o datapoint de 12:48 mostra 1 operação pendente de 37 B (o tamanho do objeto), replicada com latência de 5 s.
-- **`OperationsFailedReplication` não apareceu.** Esta métrica só é publicada quando há falha; a ausência dela aqui é o esperado.
+- **`OperationsFailedReplication` não apareceu.** Ela só começou a ser publicada no incidente do teste 2 (abaixo); sem falha, a ausência dela é o esperado.
 - **Atraso:** às 12:49 ainda não havia datapoints; eles apareceram até as 12:54. Na primeira leitura, `list-metrics` listou só uma das métricas e depois nenhuma. Durante esse atraso, o `list-metrics` oscila. Num incidente, não conclua nada de metrics com menos de ~5 min.
 - **Antes do primeiro PUT**, as métricas já publicavam zero: a regra gera datapoints mesmo sem tráfego. É isso que cobra estando parado.
 
@@ -119,6 +119,12 @@ O caminho de diagnóstico, do sintoma à causa:
 
 A `OperationsFailedReplication` não tinha datapoints às 13:20, mas tinha às 13:22. O atraso de ~5 min se repetiu.
 
+**A falha está confirmada por dois sinais independentes:**
+1. `ReplicationStatus=FAILED` no `head-object` da versão `B_N1Mb.qGYe2uW3me0tDlq7OmMLz8j8k` na origem. É o sinal por objeto.
+2. `OperationsFailedReplication = 1` às 13:17 (dimensões `SourceBucket`, `DestinationBucket`, `RuleId=repl-prefix`). É o sinal agregado por regra, onde se pendura um alarme.
+
+Os dois apontam para o mesmo evento: 1 objeto, no mesmo minuto em que `BytesPendingReplication` registrou 41 B, o tamanho do objeto.
+
 ### Rollback e verificação (verificado às 13:22–13:23)
 
 | Verificação | Resultado |
@@ -138,6 +144,8 @@ Tirar o Deny só conserta as gravações novas. A replicação normal não repro
 | Regravar | `copy-object` do objeto sobre ele mesmo, com `--metadata-directive REPLACE` | cria um VersionId novo, que replica; a versão `FAILED` vira noncurrent | viável |
 | S3 Batch Replication | job com filtro de status `Failed` ([docs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-batch-replication-batch.html)) | replica a **versão original**, com o mesmo VersionId | bloqueada: precisa de uma role para `batchoperations.s3.amazonaws.com`, e o `terraform-lab-role` só passa roles ao EC2 e ao S3. Cobra por job e por objeto |
 | Aceitar | nada | a versão expira pelo lifecycle (noncurrent em 1 dia; esta é a current, então fica até ser sobrescrita ou apagada) | aceitável para objeto de teste |
+
+**Decisão (2026-10-22):** `repl/falha-deny-dia3.txt` fica na origem, sem regravar, como evidência do incidente até a limpeza final do Dia 3 (`force_destroy=true` + `destroy`).
 
 Lição para produção: depois de corrigir a causa, **sempre** rode um levantamento de `FAILED`, por S3 Inventory ou por Batch Replication com filtro. Senão, o dado que falhou durante o incidente fica para sempre fora do destino, sem nenhum alarme novo.
 
