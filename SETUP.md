@@ -41,7 +41,7 @@ docker pull public.ecr.aws/awslabs-mcp/awslabs/aws-api-mcp-server:1.5.6
 7. **Lab role session:** IAM → *Roles* → `terraform-lab-role` → *Summary* → *Edit* → *Maximum session duration* → **4 hours** → *Save changes*. Done on 2026-10-22 (`MaxSessionDuration` 3600 → 14400). The role is not in any Terraform stack, so no apply reverts it.
 8. **Local profile**, only after step 7, or AssumeRole fails with `ValidationError ... exceeds the MaxSessionDuration`:
    - `~/.aws/config`, `[profile lab]`: `duration_seconds = 3600` → `14400`. MFA (`mfa_serial`) and `source_profile = default` stay as they are.
-   - `~/.zshrc`, function `aws-lab`: fallback `${AWS_CREDENTIAL_EXPIRATION:-1h}` → `:-4h` (display only).
+   - `scripts/aws-lab.zsh` (sourced by `~/.zshrc`) already shows `4h` as the fallback; open a new terminal or `source ~/.zshrc` to load it.
    - `rm -f ~/.aws/cli/cache/*.json`: the CLI keeps reusing the cached 1h session until it expires.
 
 No role chaining: `source_profile = default` is the `readonly-user` IAM user, so the 4h hold. A session started from another role's credentials would be capped at 1h. `aws-lab-off` is unchanged.

@@ -15,7 +15,7 @@ else
   echo "AWS inventory: no saved inventory yet (run scripts/inventory.sh to see the current state)."
 fi
 
-echo "To create resources (Terraform/CLI): run aws-lab in your terminal; it asks for MFA and lasts 1h. aws-lab-off goes back to readonly."
+echo "To create resources (Terraform/CLI): run aws-lab in your terminal; it asks for MFA and lasts 4h. aws-lab-off goes back to readonly."
 
 "$dir/scripts/hook-session-end.sh"
 exit 0
