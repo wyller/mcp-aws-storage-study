@@ -36,12 +36,24 @@ docker pull public.ecr.aws/awslabs-mcp/awslabs/aws-api-mcp-server:1.5.6
 5. **Replication policy:** IAM → *Policies* → *Create policy* → *JSON* → paste `policies/lab-s3-replication.json` → name `lab-s3-replication`.
 6. **Allow-list of the lab role:** IAM → *Policies* → `terraform-lab-iam-lab-roles` → *Edit* → *JSON* → paste `policies/terraform-lab-iam-lab-roles.json` → *Save changes* (it becomes the default version). Done on 2026-10-22 (v2); the repo file is the version in AWS.
 
+### 4h lab sessions
+
+7. **Lab role session:** IAM → *Roles* → `terraform-lab-role` → *Summary* → *Edit* → *Maximum session duration* → **4 hours** → *Save changes*. Done on 2026-10-22 (`MaxSessionDuration` 3600 → 14400). The role is not in any Terraform stack, so no apply reverts it.
+8. **Local profile**, only after step 7, or AssumeRole fails with `ValidationError ... exceeds the MaxSessionDuration`:
+   - `~/.aws/config`, `[profile lab]`: `duration_seconds = 3600` → `14400`. MFA (`mfa_serial`) and `source_profile = default` stay as they are.
+   - `~/.zshrc`, function `aws-lab`: fallback `${AWS_CREDENTIAL_EXPIRATION:-1h}` → `:-4h` (display only).
+   - `rm -f ~/.aws/cli/cache/*.json`: the CLI keeps reusing the cached 1h session until it expires.
+
+No role chaining: `source_profile = default` is the `readonly-user` IAM user, so the 4h hold. A session started from another role's credentials would be capped at 1h. `aws-lab-off` is unchanged.
+
 ## Check
 
 ```bash
 aws sts get-caller-identity --profile cleanup        # Arn: ...assumed-role/claude-cleanup-role/...
 aws iam list-account-aliases                         # wyller-estudos
 ./scripts/inventory.sh                               # CLEAN
+aws iam get-role --role-name terraform-lab-role --query Role.MaxSessionDuration   # 14400
+aws-lab                                              # "expires at" ~4h ahead; aws-lab-off returns to readonly-user
 ```
 
 Then open Claude Code in `/var/www/mcp-aws-storage-study`, approve the `aws-api` and `aws-knowledge` MCPs and ask for `/aws-cleanup` to test the dry-run.
