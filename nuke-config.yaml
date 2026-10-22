@@ -77,6 +77,8 @@ presets:
         - "arn:aws:iam::004009722521:policy/CustomS3DeleteBucket"
         - "arn:aws:iam::004009722521:policy/claude-cleanup-delete-only"
         - "arn:aws:iam::004009722521:policy/terraform-lab-iam-lab-roles"
+        # Replication permissions for lab-s3-repl-* roles; kept between days, like the allow-list it is on.
+        - "arn:aws:iam::004009722521:policy/lab-s3-replication"
       BudgetsBudget:
         - property: Name
           value: "My Monthly Cost Budget"

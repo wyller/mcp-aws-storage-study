@@ -21,15 +21,28 @@
 - **Limpeza:** versões e delete markers seguram o bucket (o `rb` falha se não esvaziar todas as versões).
 - **Feito em 2026-10-21** ([nota](s3-dia2-403-versionamento.md)): sem EC2, KMS nem endpoint. O 403 ficou entre o IAM e a bucket policy (deny explícito, deny implícito, 403 no lugar do 404 sem `ListBucket`), além do versionamento com delete marker, da recuperação de versão e da auditoria do lifecycle. As causas KMS e endpoint, a EC2 com a `lab-s3-read-role` e o lifecycle para IA/Glacier ficaram para o bloco "S3 + KMS", em "Depois".
 
-## Dia 3: EBS snapshots, restore e o primeiro acesso lento
+## Dia 3: S3 Replication e Performance
+
+Redefinido em 2026-10-22: EBS snapshots passou para o Dia 4, e EFS e Backup desceram um dia.
+
+- **Hipótese:** a replicação é assíncrona e só cobre o que a regra enxerga. Objetos fora do filtro, gravados antes da regra (ou com ela desligada), deletes por `version-id` e réplicas não replicam. Uma falha de permissão no destino não aparece na regra: só no `x-amz-replication-status` (`FAILED`) e nas replication metrics.
+- **Lab:** SRR em us-east-1, com dois buckets versionados (`lab-s3-repl-src-*` e `lab-s3-repl-dst-*`), a role `lab-s3-repl-role` e a managed policy `lab-s3-replication` (criada no console). Status `PENDING` → `COMPLETED`/`REPLICA`, o que não replica, falha provocada por deny na bucket policy do destino, e performance com teto: PUTs pequenos em série contra paralelos, upload de 100 MiB com e sem multipart, e latência de replicação do objeto pequeno contra o de 100 MiB. Stack em `terraform/s3-replication`.
+- **Pré-requisito:** a `terraform-lab-role` não cria policy e só passava role para a EC2. A allow-list ganha a `lab-s3-replication` e um PassRole de `lab-s3-repl-*` para `s3.amazonaws.com` (ver `SETUP.md`).
+- **Como cobra:** armazenamento nos **dois** buckets (a réplica é cobrada inteira), PUT de replicação no destino, replication metrics como custom metric do CloudWatch (proporcional por hora) e nada de transferência no SRR. CRR soma ~US$ 0,02/GB entre regiões. RTC (US$ 0,015/GB) e Batch Replication (Batch Operations por job e por objeto) só no estudo.
+- **Custo do lab:** < US$ 0,05.
+- **CRR:** extensão opcional, só depois de avaliar o custo.
+- **Limpeza:** esvaziar os dois buckets (as réplicas também têm versões), `plan -destroy` e `destroy`. A managed policy fica entre os dias, protegida no `nuke-config.yaml`.
+
+## Dia 4: EBS snapshots, restore e o primeiro acesso lento
 
 - **Hipótese:** um volume restaurado de snapshot fica lento na primeira leitura de cada bloco, porque busca os dados do S3 sob demanda. Ler o volume inteiro com fio "aquece" o disco.
 - **Lab:** snapshot do volume, restore, leitura completa com fio (medindo o p99 antes e depois), além do teto de **IOPS** da t3.micro (11.800), que ficou pendente: randwrite 4k, QD 64, volume ≥ 24 GiB.
 - **Como cobra:** snapshot por GB-mês incremental, archive tier (mais barato, com restore pago e mínimo de 90 dias). **Fast Snapshot Restore cobra ~US$ 0,75/h por AZ: não habilitar**, só estudar.
 - **Custo do lab:** < US$ 0,30 (o teste de IOPS tem ~US$ 0,09/h extra de IOPS provisionadas, por até 1 h).
 - **Limpeza:** snapshots ficam fora do state se forem criados pelo console. O inventário pega.
+- **Código pronto** (commit `665ce3a`): `create_snapshot` e `restore_from_snapshot` em `terraform/ebs`, desligados por padrão.
 
-## Dia 4: EFS contra EBS
+## Dia 5: EFS contra EBS
 
 - **Hipótese:** o EFS no modo Elastic escala o throughput sem provisionar, mas a latência por operação é maior que a do EBS. Com arquivos pequenos e QD baixo, ele perde de muito.
 - **Lab:** EFS com mount target numa AZ, montado via NFS na EC2. Mesmo fio da parte 2 (seq 1M) e um teste de arquivos pequenos. Comparar a latência com o gp3.
@@ -37,7 +50,7 @@
 - **Custo do lab:** < US$ 0,10.
 - **Limpeza:** o mount target precisa sair antes do file system. O Terraform cuida da ordem.
 
-## Dia 5: AWS Backup e restore testado
+## Dia 6: AWS Backup e restore testado
 
 - **Hipótese:** backup que nunca foi restaurado não é backup. O tempo de restore (RTO) se mede, não se supõe.
 - **Lab:** plano do AWS Backup para um volume EBS por tag, um job sob demanda, restore e checagem do conteúdo (sha256 antes e depois).
