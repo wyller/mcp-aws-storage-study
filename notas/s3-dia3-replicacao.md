@@ -149,9 +149,45 @@ Tirar o Deny só conserta as gravações novas. A replicação normal não repro
 
 Lição para produção: depois de corrigir a causa, **sempre** rode um levantamento de `FAILED`, por S3 Inventory ou por Batch Replication com filtro. Senão, o dado que falhou durante o incidente fica para sempre fora do destino, sem nenhum alarme novo.
 
+## Delete markers (testes 3 e 4)
+
+DELETE sem `--version-id` feito pelo usuário com `aws-lab` (relatado). Estado lido com `list-object-versions` às 13:45 (verificado).
+
+| | Teste 3: `DeleteMarkerReplication=Disabled` | Teste 4: `Enabled` |
+|---|---|---|
+| Chave | `repl/delete-marker-dia3.txt` | `repl/delete-marker-dia3-on.txt` (chave nova: ligar a opção não replica markers que já existem) |
+| PUT / DELETE | 13:36:51 / 13:37:24 | 13:40:49 / 13:42:25 |
+| Origem | versão `oGekxKss…` noncurrent + marker `xaL_bwjr…` `IsLatest` → GET 404 | versão `6mkmjOR4…` noncurrent + marker `a4.14CF2…` `IsLatest` → GET 404 |
+| Destino | versão `oGekxKss…` **`IsLatest`, sem marker** → GET 200 | versão `6mkmjOR4…` noncurrent + **o mesmo marker `a4.14CF2…`** → GET 404 |
+| Leitura | o marker ficou só na origem; o destino continua servindo o objeto | o marker replicou com o mesmo VersionId; o objeto parece apagado nos dois buckets |
+
+Sequência no Terraform (plans salvos, relatado): `dm-on.tfplan` (13:40, `Disabled` → `Enabled`), teste 4, `dm-off.tfplan` (13:44, rollback para `Disabled`). A regra com `Disabled` foi verificada às 13:45.
+
+### O que isso ensina
+
+- **V2 (`Filter` na regra) não replica delete marker por padrão.** O destino funciona como proteção contra DELETE acidental na origem, mas os dois lados deixam de estar em sincronia ([docs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/replication-what-is-isnot-replicated.html)).
+- **`DeleteMarkerReplication=Enabled`** mantém os dois lados iguais: um DELETE na origem esconde o objeto também no destino. Os dados continuam lá como versão noncurrent; nada foi apagado de verdade.
+- **O que nunca replica, com qualquer configuração:**
+  - DELETE **com** `--version-id`: apagar uma versão de vez não chega ao destino. É a proteção contra exclusão maliciosa.
+  - Markers criados por lifecycle.
+  - Markers em regras com filtro por **tag**, que não aceitam a opção.
+- **"Desapagar" com a opção ligada** é apagar o marker pelo VersionId em **cada** bucket: esse DELETE tem version-id, então não replica.
+- **Pergunta de entrevista:** "apaguei na origem e o objeto continua no DR, está quebrado?" Não. É o comportamento padrão da V2. Para espelhar exclusões, ligue `DeleteMarkerReplication`, e aí aceite que um erro humano também é espelhado.
+
+## Encerramento (verificado às 13:56)
+
+| Verificação | Resultado |
+|---|---|
+| Destroy | executado pelo usuário com `force_destroy=true` já aplicado; state atualizado às 13:55:58 (serial 55, **0 recursos**). Os 17 saíram: `head-bucket` dá 404 nos dois buckets e `get-role lab-s3-repl-role` dá `NoSuchEntity` |
+| `scripts/inventory.sh` | **CLEAN** |
+| IAM compartilhado | `lab-s3-replication` v1 (0 attachments) e `terraform-lab-iam-lab-roles` v2 continuam; o `terraform-lab-role` mantém `PowerUserAccess` + a allow-list; `lab-s3-read-role` e `lab-storage-ec2-ssm` intactas |
+| Metrics | os nomes ainda aparecem no `list-metrics` (4), por causa dos datapoints históricos. Sem regra, não há novos datapoints nem cobrança |
+
+O objeto de evidência `repl/falha-deny-dia3.txt` saiu junto com o bucket, como planejado.
+
 ## Próximos cenários
 
 1. ~~`deny_replicate_on_dst=true`~~: feito; ver o incidente acima.
-2. Regra desligada (`replication_rule_enabled=false`): o que for escrito nesse intervalo nunca replica, nem depois de religar. Para esses objetos o caminho é S3 Batch Replication.
-3. Delete markers: com `delete_marker_replication=false`, um DELETE sem version-id não chega ao destino; com `true`, chega. DELETE com version-id nunca replica.
-4. Encerramento: `apply -var force_destroy=true`, depois `terraform destroy`, depois `scripts/inventory.sh`.
+2. ~~Delete markers~~: feito; ver os testes 3 e 4.
+3. ~~Encerramento~~: feito; ver acima.
+4. **Não feito:** regra desligada (`replication_rule_enabled=false`). O que for escrito nesse intervalo nunca replica, nem depois de religar; para esses objetos o caminho é S3 Batch Replication. Fica para uma próxima vez: a stack sobe de novo com um `apply`.
