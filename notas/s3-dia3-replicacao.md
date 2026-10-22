@@ -67,9 +67,83 @@ Dimensões: `SourceBucket`, `DestinationBucket` e `RuleId=repl-prefix`. Consulta
 - **Requests:** o PUT da réplica no destino é cobrado como request normal. SRR não tem transferência entre regiões.
 - **Metrics:** custom metrics do CloudWatch, cobradas por hora enquanto a regra existir, **mesmo sem tráfego**. É o que custa estando parado.
 
+## Incidente provocado: Explicit Deny no destino (teste 2)
+
+Todos os horários estão em UTC. Na saída do CloudWatch eles vêm em -03.
+
+### Linha do tempo
+
+| Hora | Evento | Fonte |
+|---|---|---|
+| ~13:12 | `terraform plan -var='deny_replicate_on_dst=true' -out=deny.tfplan`; `apply deny.tfplan` (0 add, 1 change, 0 destroy) | relatado; o plan com o `readonly-user` foi verificado antes |
+| 13:15:45 | PUT de `repl/falha-deny-dia3.txt` (41 B, VersionId `B_N1Mb.qGYe2uW3me0tDlq7OmMLz8j8k`) | verificado |
+| 13:15–13:16 | mesmo VersionId: `PENDING` → `FAILED` | relatado (capturas do console) |
+| 13:16 | metrics: 1 operação pendente, 41 B, `ReplicationLatency` 16 s | verificado |
+| 13:17 | `OperationsFailedReplication` = 1 | verificado |
+| 13:19:42 | `plan -var='deny_replicate_on_dst=false' -out=undo.tfplan`; `apply undo.tfplan` (rollback) | relatado; o horário vem do state |
+| 13:21:28 | PUT de `repl/recuperacao-dia3.txt` (42 B), depois do rollback | verificado |
+
+### Causa
+
+A v2 da bucket policy do destino ganhou esta statement:
+
+```json
+{
+  "Sid": "DenyReplicationRole",
+  "Effect": "Deny",
+  "Principal": { "AWS": "arn:aws:iam::004009722521:role/lab-s3-repl-role" },
+  "Action": "s3:ReplicateObject",
+  "Resource": "arn:aws:s3:::lab-s3-repl-dst-004009722521/*"
+}
+```
+
+O IAM da role (`lab-s3-replication`) permite `s3:ReplicateObject` no destino, mas um Deny explícito na resource policy vence qualquer Allow. O S3 assumiu a role, teve a gravação da réplica negada e marcou a versão como `FAILED`.
+
+### Diagnóstico: o que mostrava a falha e o que escondia
+
+| Sinal | Valor durante a falha | Mostra o problema? |
+|---|---|---|
+| `get-bucket-replication` | regra `Enabled` | **não**: a configuração parece saudável |
+| policy IAM da role | Allow em `ReplicateObject` | **não**: o lado IAM está correto |
+| `head-object` na origem | `ReplicationStatus: FAILED` | sim, por objeto |
+| `head-object` no destino | 404 | sim, por objeto |
+| `OperationsFailedReplication` | 1 às 13:17 | sim, por regra; dá para alarmar. Chega com atraso de minutos |
+| `get-bucket-policy` no destino | `DenyReplicationRole` presente | é a causa |
+
+O caminho de diagnóstico, do sintoma à causa:
+1. **Status `FAILED` no objeto:** o problema existe e é por objeto.
+2. **Regra e IAM da role em ordem:** isso afasta config e identity policy.
+3. **Olhar o outro lado, a resource policy do destino:** Deny explícito para a role.
+
+É o mesmo raciocínio do 403 do Dia 2: quando o IAM permite e a operação falha, o próximo lugar a olhar é a resource policy.
+
+A `OperationsFailedReplication` não tinha datapoints às 13:20, mas tinha às 13:22. O atraso de ~5 min se repetiu.
+
+### Rollback e verificação (verificado às 13:22–13:23)
+
+| Verificação | Resultado |
+|---|---|
+| `get-bucket-policy` no destino | só `DenyInsecureTransport`; `DenyReplicationRole` foi removida |
+| `terraform plan` sem `-var` | `No changes` |
+| `repl/recuperacao-dia3.txt` | origem `COMPLETED`, destino `REPLICA`, mesmo VersionId (`Lm8azZfVwXodH8ZwW7cV.sB6taZ07vQT`) e mesmo ETag (`245681cc…`) |
+| `repl/a.txt` (teste 1) | continua `COMPLETED` / `REPLICA`; o Deny não afetou o que já tinha sido replicado |
+| `repl/falha-deny-dia3.txt` | continua **`FAILED`** na origem e ausente no destino (404) |
+
+### O objeto que falhou não se recupera sozinho
+
+Tirar o Deny só conserta as gravações novas. A replicação normal não reprocessa versões `FAILED` ([re:Post](https://repost.aws/knowledge-center/s3-troubleshoot-replication)). Opções:
+
+| Opção | Como | Efeito | Neste lab |
+|---|---|---|---|
+| Regravar | `copy-object` do objeto sobre ele mesmo, com `--metadata-directive REPLACE` | cria um VersionId novo, que replica; a versão `FAILED` vira noncurrent | viável |
+| S3 Batch Replication | job com filtro de status `Failed` ([docs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-batch-replication-batch.html)) | replica a **versão original**, com o mesmo VersionId | bloqueada: precisa de uma role para `batchoperations.s3.amazonaws.com`, e o `terraform-lab-role` só passa roles ao EC2 e ao S3. Cobra por job e por objeto |
+| Aceitar | nada | a versão expira pelo lifecycle (noncurrent em 1 dia; esta é a current, então fica até ser sobrescrita ou apagada) | aceitável para objeto de teste |
+
+Lição para produção: depois de corrigir a causa, **sempre** rode um levantamento de `FAILED`, por S3 Inventory ou por Batch Replication com filtro. Senão, o dado que falhou durante o incidente fica para sempre fora do destino, sem nenhum alarme novo.
+
 ## Próximos cenários
 
-1. `deny_replicate_on_dst=true`: um novo PUT em `repl/` deve ficar `FAILED`, com a regra ainda "Enabled". Ver `OperationsFailedReplication`.
+1. ~~`deny_replicate_on_dst=true`~~: feito; ver o incidente acima.
 2. Regra desligada (`replication_rule_enabled=false`): o que for escrito nesse intervalo nunca replica, nem depois de religar. Para esses objetos o caminho é S3 Batch Replication.
 3. Delete markers: com `delete_marker_replication=false`, um DELETE sem version-id não chega ao destino; com `true`, chega. DELETE com version-id nunca replica.
 4. Encerramento: `apply -var force_destroy=true`, depois `terraform destroy`, depois `scripts/inventory.sh`.
