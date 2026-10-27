@@ -1,0 +1,10 @@
+#cloud-config
+# Rendered by main.tf (templatefile). Runs once, on the first boot.
+package_update: true
+packages:
+  - fio
+write_files:
+  - path: /usr/local/bin/lab-ebs
+    permissions: "0755"
+    encoding: gz+b64
+    content: ${lab_ebs_gzb64}

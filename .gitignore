@@ -10,3 +10,6 @@ __pycache__/
 crash.log
 # Saved plans: binary snapshot of state and variables; applied once, never versioned.
 *.tfplan
+
+# Day 4: per-step lab variables (snapshots, restore_from); they describe live resources, not code.
+terraform/ebs-snapshots/terraform.tfvars

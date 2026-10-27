@@ -12,7 +12,7 @@ region=us-east-1
 # On the EC2 (runs as root, so it reads the files "sudo fio" created): sha256 manifest, a
 # marker and the base64 tar.gz on a single line. SSM inline output is cut at 24,000 characters;
 # if it gets cut, tar or sha256 fail below, so a half file never gets through.
-remoto='cd /tmp && f=$(ls lab-fio-*.json lab-fase-*.log 2>/dev/null) && [ -n "$f" ] && sha256sum $f && echo ---TAR--- && tar czf - $f | base64 -w0'
+remoto='cd /tmp && f=$(ls lab-fio-*.json lab-fase-*.log 2>/dev/null || true) && [ -n "$f" ] && sha256sum $f && echo ---TAR--- && tar czf - $f | base64 -w0'
 params="$(python3 -I -c 'import json,sys; print(json.dumps({"commands": [sys.argv[1]]}))' "$remoto")"
 
 cmd_id="$(aws ssm send-command --region "$region" --instance-ids "$instance" \
