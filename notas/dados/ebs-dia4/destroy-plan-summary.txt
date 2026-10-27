@@ -1,0 +1,11 @@
+  # aws_ebs_snapshot.data["s1"] will be destroyed
+  # aws_ebs_snapshot.data["s2"] will be destroyed
+  # aws_ebs_volume.data will be destroyed
+  # aws_ebs_volume.restored[0] will be destroyed
+  # aws_ebs_volume.restored_second[0] will be destroyed
+  # aws_instance.lab will be destroyed
+  # aws_security_group.lab will be destroyed
+  # aws_volume_attachment.data will be destroyed
+  # aws_volume_attachment.restored[0] will be destroyed
+  # aws_volume_attachment.restored_second[0] will be destroyed
+Plan: 0 to add, 0 to change, 10 to destroy.

@@ -84,6 +84,21 @@ variable "restore_from" {
   }
 }
 
+# A second restore slot, so two snapshots can be mounted side by side. Separate resources (not a
+# for_each over restore_from) keep the addresses of the first restore, which an apply would otherwise move or replace.
+variable "restore_second_from" {
+  description = "Label of a second snapshot to restore as another new volume on /dev/sdh; null for none"
+  type        = string
+  default     = null
+
+  validation {
+    condition = var.restore_second_from == null || (
+      contains(var.snapshots, coalesce(var.restore_second_from, "-")) && var.restore_second_from != var.restore_from
+    )
+    error_message = "restore_second_from must be one of the labels in snapshots, and not the same as restore_from."
+  }
+}
+
 # A restored volume can be larger than the snapshot (the filesystem then needs resize2fs), never smaller.
 variable "restored_size" {
   description = "Size of the restored volume, in GiB; null keeps the snapshot size"
@@ -285,6 +300,34 @@ resource "aws_volume_attachment" "restored" {
   instance_id = aws_instance.lab.id
 }
 
+# Same settings as the first restore. Its filesystem has the same UUID and label as the data volume
+# and the first restore: lab-ebs mounts it by serial, never by UUID or LABEL.
+resource "aws_ebs_volume" "restored_second" {
+  count = var.restore_second_from == null ? 0 : 1
+
+  availability_zone = aws_ebs_volume.data.availability_zone
+  snapshot_id       = aws_ebs_snapshot.data[var.restore_second_from].id
+
+  size       = coalesce(var.restored_size, var.volume_size)
+  type       = "gp3"
+  iops       = 3000
+  throughput = 125
+  encrypted  = true
+
+  tags = {
+    Name         = "lab-ebs-snap-restored-2"
+    RestoredFrom = var.restore_second_from
+  }
+}
+
+resource "aws_volume_attachment" "restored_second" {
+  count = var.restore_second_from == null ? 0 : 1
+
+  device_name = "/dev/sdh"
+  volume_id   = aws_ebs_volume.restored_second[0].id
+  instance_id = aws_instance.lab.id
+}
+
 
 #---------------- Outputs ----------------
 
@@ -303,4 +346,8 @@ output "snapshot_ids" {
 
 output "restored_volume_id" {
   value = one(aws_ebs_volume.restored[*].id)
+}
+
+output "restored_second_volume_id" {
+  value = one(aws_ebs_volume.restored_second[*].id)
 }

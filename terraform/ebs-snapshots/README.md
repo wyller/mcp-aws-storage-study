@@ -6,7 +6,7 @@ Hypotheses:
 2. A snapshot taken while an app writes, with no freeze, is **crash-consistent**: the restored filesystem is in the state a power cut would leave. The journal keeps it valid, and whatever was only in the page cache may be missing.
 3. A volume restored from a snapshot is slow on the first read of each block (lazy loading from S3). Reading it all once (initialization) brings it to normal latency.
 
-Nothing here has been applied. Every write to AWS (apply, destroy, SSM session or command, `create-snapshot`) is yours, after `aws-lab`.
+Run on 2026-10-27 and destroyed the same day (results and what was not tested: `notas/ebs-dia4-snapshots.md`). Every write to AWS (apply, destroy, SSM session or command, `create-snapshot`) is yours, after `aws-lab`.
 
 ## Architecture
 
@@ -16,18 +16,19 @@ us-east-1a, default VPC (route 0.0.0.0/0 -> IGW, default NACL)
 │  Session Manager only (profile lab-storage-ec2-profile, from terraform/iam-compartilhado)│
 │  /dev/sda1  root gp3 8 GiB   /var/lib/lab-ebs: manifests, outside every data snapshot    │
 │  /dev/sdf   data gp3 20 GiB  /mnt/lab-data      ──CreateSnapshot──►  snap s1, s2 (S3)    │
-│  /dev/sdg   restored gp3     /mnt/lab-restored  ◄──CreateVolume───   one of them         │
+│  /dev/sdg   restored gp3     /mnt/lab-restored     ◄──CreateVolume── restore_from (s1)   │
+│  /dev/sdh   restored gp3     /mnt/lab-restored-s2  ◄──CreateVolume── restore_second_from │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 | File | What |
 |---|---|
-| `main.tf` | EC2, data volume, `aws_ebs_snapshot` per label in `snapshots` (created by Terraform or adopted through `snapshot_ids`), restored volume from `restore_from` |
+| `main.tf` | EC2, data volume, `aws_ebs_snapshot` per label in `snapshots` (created by Terraform or adopted through `snapshot_ids`), up to two restored volumes (`restore_from`, `restore_second_from`) |
 | `files/lab-ebs.sh` | on-instance helper (`sudo lab-ebs`), installed by cloud-init together with `fio` |
 | `files/cloud-init.yaml.tftpl` | user data |
 | `tests/lab-ebs-guards.sh`, `tests/take-thaw.sh` | local tests with stubs (no AWS, no disk): device guards, and the thaw path of `take` |
 | `../../scripts/ebs-snapshots.sh` | local: `status` (readonly), `blocks` and `take` (after `aws-lab`) |
-| `terraform.tfvars` | yours, per step, git-ignored: `snapshots`, `snapshot_ids`, `restore_from` |
+| `terraform.tfvars` | yours, per step, git-ignored: `snapshots`, `snapshot_ids`, `restore_from`, `restore_second_from` |
 
 Choices:
 
@@ -220,6 +221,8 @@ sudo lab-ebs writer stop                    # EC2, after the apply
 
 Write down the `StartTime` of s2 (`scripts/ebs-snapshots.sh status`).
 
+On 2026-10-27, s2 was taken with `scripts/ebs-snapshots.sh take s2` instead (freeze, then import), so it came out filesystem-consistent, like s1. Hypothesis 2 is still untested: to test it, follow this step as written.
+
 ### 5. Measure the increment (your terminal, `aws-lab`)
 
 ```bash
@@ -231,79 +234,96 @@ Expected: the second number is a small part of the first (~40 MiB plus metadata 
 
 ### 6. Restore s1: first-access latency and integrity
 
+`snapshots` and `snapshot_ids` stay as they are (removing an ID from `snapshot_ids` does nothing, but removing a label from `snapshots` deletes that snapshot). Only `restore_from` is added:
+
 ```bash
-cat > terraform/ebs-snapshots/terraform.tfvars <<'EOF'
-snapshots    = ["s1", "s2"]
-snapshot_ids = { s1 = "snap-..." }
-restore_from = "s1"
-EOF
-tf plan -out r1.tfplan && tf apply r1.tfplan     # 2 to add (restored volume + attachment)
+echo 'restore_from = "s1"' >> terraform/ebs-snapshots/terraform.tfvars
+tf plan -out r1.tfplan
+tf show -no-color r1.tfplan | grep -E '^  # '
+#   exactly 2 lines: aws_ebs_volume.restored[0] and aws_volume_attachment.restored[0] will be created
+#   anything on aws_instance.lab (e.g. user_data after editing files/lab-ebs.sh) is a stop/start: do not apply
+tf apply r1.tfplan
+tf output restored_volume_id
 ```
 
 On the EC2, **in this order** (every read initializes the blocks it touches):
 
 ```bash
-sudo lab-ebs status                                       # the restored volume has the same ext4 UUID and label as the source
-sudo lab-ebs mount <restored_volume_id> /mnt/lab-restored ro
+sudo wc -l /var/lib/lab-ebs/s1.sha256                     # 1004: the manifest is on the root volume, not on the restore
+sudo head -n 1 /var/lib/lab-ebs/s1.sha256                 # paths start with dataset/, relative to the mount point
+sudo lab-ebs status                                       # same ext4 UUID and LABEL as the source; serial = restored ID
+v=<restored_volume_id>
+d=/dev/$(lsblk -dn -o NAME,SERIAL | awk -v s="$(echo "$v" | tr -d -)" '$2 == s {print $1}'); echo "$d"   # must not be /dev/
+sudo blockdev --setro "$d"                                # kernel-level read-only (see below)
+sudo lab-ebs mount "$v" /mnt/lab-restored ro
 sudo lab-ebs latency restored-cold                        # 1st: blocks still in S3
 sudo lab-ebs verify s1                                    # OK: 1004 files, no extra
-sudo lab-ebs init <restored_volume_id>                    # reads all 20 GiB (several minutes)
+sudo lab-ebs init "$v"                                    # reads all 20 GiB (several minutes)
 sudo lab-ebs latency restored-warm
 sudo lab-ebs latency source /mnt/lab-data                 # control: never restored
 ```
 
 Expected: `restored-cold` with p99 well above `restored-warm`, and `restored-warm` close to `source`. Not a promise: the size of the difference is what the lab measures.
 
-### 7. Swap the restore to s2 and delete s1: without detaching a mounted volume
+Observed on 2026-10-27: no visible cold penalty. fio (as reported from the user's screen; the JSONs were lost) gave cold 1,640 IOPS, p50 0.59 ms, p99 0.94 ms; warm 1,667, 0.58 / 0.93 ms; source 1,646, 0.59 / 0.91 ms; `init` 126 MiB/s. CloudWatch (1-minute sums, EBS side) agrees: ~1,650 IOPS each, average read latency 0.55 ms. That does not rule out lazy loading elsewhere. The cold run started ~15 min after `CreateVolume`, and s1 holds only ~260 MiB of data: the default initialization, which runs in the background ([docs](https://docs.aws.amazon.com/ebs/latest/userguide/initalize-volume.html)), most likely had already fetched it. To see the penalty, run `latency restored-cold` right after the attach, and check `aws ec2 describe-volume-status --volume-ids <id> --query 'VolumeStatuses[].InitializationStatusDetails'` first (`Progress` below 100). Collect the fio JSONs before the destroy (cleanup step 2): only the averages survive in CloudWatch, not p50/p99.
 
-Three applies, each with its own plan, so no detach ever happens with the volume mounted:
+Why `blockdev --setro`: on ext4, `mount -o ro` still replays the journal, which writes to the device, if the filesystem was not clean. s1 came from a freeze, which leaves it clean, so nothing should be written; with the device read-only, a mount that needed recovery fails (`write access unavailable, cannot proceed`) instead of writing. The flag lives in the kernel and goes away with the detach.
 
-```bash
-# EC2
-sudo lab-ebs umount /mnt/lab-restored
-sudo lab-ebs detach-ready <restored_volume_id>            # must print READY; anything else: do not go on
-```
+Why by serial: `/dev/sdg` does not map to a fixed `nvmeXn1`, and the duplicate UUID and LABEL make `/dev/disk/by-uuid` and `by-label` point at either volume. `lab-ebs` never mounts by UUID or LABEL and never writes `/etc/fstab`.
 
-```bash
-# a) only detaches and deletes the restored volume
-cat > terraform/ebs-snapshots/terraform.tfvars <<'EOF'
-snapshots    = ["s1", "s2"]
-snapshot_ids = { s1 = "snap-..." }
-EOF
-tf plan -out r0.tfplan     # 2 to destroy: aws_volume_attachment.restored[0], aws_ebs_volume.restored[0]
-tf apply r0.tfplan
+### 7. Restore s2 next to s1: recovery and integrity, no benchmark
 
-# b) deletes s1 (and drops it from snapshot_ids)
-echo 'snapshots = ["s2"]' > terraform/ebs-snapshots/terraform.tfvars
-tf plan -out d1.tfplan     # 1 to destroy: aws_ebs_snapshot.data["s1"]
-tf apply d1.tfplan
-
-# c) restores s2
-printf 'snapshots    = ["s2"]\nrestore_from = "s2"\n' > terraform/ebs-snapshots/terraform.tfvars
-tf plan -out r2.tfplan     # 2 to add
-tf apply r2.tfplan
-```
+A second restore slot (`restore_second_from`, `/dev/sdh`) leaves the s1 restore attached and mounted. The two slots are separate resources, not a `for_each`, so adding the second never moves or replaces the first:
 
 ```bash
-# EC2
-sudo lab-ebs mount <restored_volume_id> /mnt/lab-restored ro     # new ID: tf output restored_volume_id
-sudo lab-ebs verify s2                                           # OK even with s1 deleted
-sudo lab-ebs writer check /mnt/lab-restored <StartTime of s2>
-sudo lab-ebs writer check /mnt/lab-data                          # everything the app wrote
+echo 'restore_second_from = "s2"' >> terraform/ebs-snapshots/terraform.tfvars
+tf plan -out r2both.tfplan
+tf show -no-color r2both.tfplan | grep -E '^  # '
+#   exactly 2 lines: aws_ebs_volume.restored_second[0] and aws_volume_attachment.restored_second[0] will be created
+tf apply r2both.tfplan                                    # after aws-lab: readonly-user gets UnauthorizedOperation on CreateVolume
+tf output restored_second_volume_id
 ```
 
-Expected, and how to read it:
+On the EC2 (no fio here: this step checks recovery and integrity):
 
-- **`verify s2` OK:** deleting a snapshot only removes the blocks no other snapshot references.
-- **`writer check` on the restored volume**, a valid result either way:
-  - fewer records than on the source;
-  - possibly a gap between the last record and the StartTime;
-  - possibly a `bad` partial last line;
-  - or nothing lost at all, if the kernel had flushed it all just before.
+```bash
+sudo wc -l /var/lib/lab-ebs/s2.sha256                     # 905
+v2=<restored_second_volume_id>
+d2=/dev/$(lsblk -dn -o NAME,SERIAL | awk -v s="$(echo "$v2" | tr -d -)" '$2 == s {print $1}'); echo "$d2"   # must not be /dev/
+sudo lab-ebs status                                       # three volumes with the same UUID and LABEL; tell them apart by SERIAL
+sudo blockdev --setro "$d2"
+sudo lab-ebs mount "$v2" /mnt/lab-restored-s2 ro
+sudo lab-ebs verify s2 /mnt/lab-restored-s2               # OK: 905 files, no extra files
+```
 
-  It is the evidence of what a crash-consistent snapshot captured, not a test with one right answer. Writeback timing (ext4 commit every 5 s by default, dirty pages flushed after ~30 s) decides how much made it.
-- **On the mount**, dmesg may or may not mention the journal: whether a replay is needed depends on what was in flight. Do not take its absence as a sign of an error.
-- **`blocks <s2>`** now counts everything s2 references. The storage of the blocks it shared with s1 stays billed, now to s2.
+How the mount behaves depends on how s2 was taken:
+
+- **With `take s2` (freeze), as on 2026-10-27:** the filesystem is clean and mounts on the read-only device at the first try. CloudWatch showed 0 `VolumeWriteOps` on both restored volumes: no journal replay, nothing written.
+- **With step 4 as written (no freeze, writer running):** the filesystem was mounted read-write when the snapshot was taken, so ext4's `needs_recovery` flag is set. The read-only device refuses the replay (`write access unavailable, cannot proceed`). That failure is the lesson. Then let the replay happen on this copy (the snapshot never changes):
+
+  ```bash
+  sudo blockdev --setrw "$d2"
+  sudo lab-ebs mount "$v2" /mnt/lab-restored-s2 ro        # dmesg: "recovery required on readonly filesystem" ... "recovery complete"
+  sudo lab-ebs writer check /mnt/lab-restored-s2 <StartTime of s2>
+  sudo lab-ebs writer check /mnt/lab-data                 # everything the app wrote
+  ```
+
+  `writer check` on the restore is valid either way: fewer records than the source, a gap before the StartTime, a `bad` partial last line, or nothing lost. Writeback timing (ext4 commit every 5 s, dirty pages after ~30 s) decides how much made it. `-o ro,noload` would skip the replay and write nothing, but metadata still in the journal would be missing, so `verify` could fail for the wrong reason.
+
+Never mount a restore read-write, and never `fsck` or `tune2fs -U` it: the duplicate UUID only matters to whatever mounts by UUID, and `lab-ebs` never does.
+
+s1 and s2 are different states:
+
+```bash
+sudo lab-ebs verify s1 /mnt/lab-restored-s2               # must FAIL: random-1.bin changed, 100 files missing, dataset/new/ extra
+sudo lab-ebs verify s2 /mnt/lab-restored                  # must FAIL the other way round
+for m in /mnt/lab-restored /mnt/lab-restored-s2; do
+  echo "$m: $(sudo find "$m/dataset" -type f | wc -l) files"; sudo sha256sum "$m/dataset/big/random-1.bin"
+done                                                      # 1004 vs 905; different hashes
+sudo diff /var/lib/lab-ebs/s1.sha256 /var/lib/lab-ebs/s2.sha256 | grep -c '^[<>]'   # 103: 100 deleted, random-1 old+new, random-5 new
+```
+
+Not covered by this flow: deleting s1 and restoring s2 afterwards (the incremental chain surviving a delete). EBS only removes the blocks no other snapshot references ([docs](https://docs.aws.amazon.com/ebs/latest/userguide/ebs-deleting-snapshot.html)); to see it, drop `s1` from `snapshots` and `restore_from` in a separate plan after unmounting, then restore s2 again.
 
 ### 8. Collect and clean up
 
@@ -325,7 +345,7 @@ Risks:
 - **Stacked snapshots:** a new snapshot of the same volume stays `pending` at 0% until the previous one finishes. Deleting a `pending` snapshot does not cancel it ([re:Post](https://repost.aws/knowledge-center/ebs-snapshot-ec2-ami-creation-slow)). `take` refuses if one is pending.
 - **Restored volume in production with no initialization:** latency spikes on the first access. Initialize it, or pay for FSR.
 - **Same UUID:** a restored volume has its source's UUID and label. An `/etc/fstab` with `UUID=` or `LABEL=` can mount the wrong one after a reboot. XFS refuses the duplicate mount (`-o nouuid`), and ext4 accepts it silently.
-- **Detaching a mounted volume:** it can stay `busy` indefinitely until it is unmounted, rebooted or force-detached. A force detach can corrupt it ([docs](https://docs.aws.amazon.com/boto3/latest/reference/services/ec2/client/detach_volume.html)). Hence `detach-ready` and the separate apply in step 7.
+- **Detaching a mounted volume:** it can stay `busy` indefinitely until it is unmounted, rebooted or force-detached. A force detach can corrupt it ([docs](https://docs.aws.amazon.com/boto3/latest/reference/services/ec2/client/detach_volume.html)). Hence `umount` + `detach-ready` before any plan that removes a restore.
 - **Encryption:** snapshots with the `aws/ebs` key cannot be shared with another account (that needs a customer managed key). The account has snapshot block public access `unblocked`. Not a risk in this lab, because nothing gets shared, but `block-all-sharing` is free hardening (an account setting: your decision).
 
 ## Tests and troubleshooting
@@ -348,7 +368,9 @@ Risks:
 | `verify` fails or shows extra files | wrong manifest/snapshot pair (s1 vs s2) | the volume's `RestoredFrom` tag against the label passed |
 | `blocks`: `AccessDeniedException` | ran with `readonly-user` | expected; run after `aws-lab` |
 | `InvalidVolume.ZoneMismatch` | volume in another AZ (the stack does not allow this; it only happens in the CLI) | `describe-volumes` against `describe-instances` |
-| cold ≈ warm | blocks already read (by `verify`, a previous run or `init`) | redo step 6 in order, on a new restore |
+| cold ≈ warm | blocks already read (by `verify`, a previous run or `init`), or the background initialization finished before the cold run (2026-10-27) | `describe-volume-status ... InitializationStatusDetails`; redo step 6 right after the attach, on a new restore |
+| `apply`: `UnauthorizedOperation` on `CreateVolume` | ran as `readonly-user` (2026-10-27) | `aws sts get-caller-identity`; `aws-lab`, then a new plan if the saved one went stale |
+| `mount ... ro` of a restore: `write access unavailable, cannot proceed` | crash-consistent snapshot, journal replay needed, device set read-only | expected; `blockdev --setrw` and mount `ro` again (step 7) |
 
 Local tests, with no AWS and no disk (stubs):
 
@@ -359,15 +381,16 @@ Local tests, with no AWS and no disk (stubs):
 
 1. EC2:
    - `sudo lab-ebs writer stop; sudo lab-ebs thaw`
-   - `sudo lab-ebs umount /mnt/lab-restored && sudo lab-ebs detach-ready <restored_volume_id>`: READY.
-2. Terminal (`aws-lab`): `scripts/collect-fio.sh <instance_id> notas/dados/ebs-dia4` (fio JSONs, checked by sha256).
-3. Default profile: `tf plan -destroy`. Expected with the step 7 tfvars: **7 to destroy**:
+   - for each restore: `sudo lab-ebs umount /mnt/lab-restored && sudo lab-ebs detach-ready <restored_volume_id>`, and the same with `/mnt/lab-restored-s2` and `<restored_second_volume_id>`: READY.
+2. Terminal (`aws-lab`): `scripts/collect-fio.sh <instance_id> notas/dados/ebs-dia4` (fio JSONs, checked by sha256). **Before the destroy:** they live in the EC2's `/tmp` and go with it (lost on 2026-10-27).
+3. Default profile: `tf plan -destroy`. Expected after step 7: **10 to destroy**:
    - SG and EC2;
    - data volume and its attachment;
-   - snapshot s2;
-   - restored volume and its attachment.
+   - snapshots s1 and s2;
+   - both restored volumes and their attachments.
 
-   Nothing from `iam-compartilhado`.
+   Each restore slot left empty: 2 fewer. Nothing from `iam-compartilhado`: the instance profile is a data source, so it never shows up here.
+   The restored attachments do not stop the EC2 before detaching, so step 1 (umount + READY) is what keeps them from hanging in `busy`.
 4. `aws-lab`: `tf destroy`. The data attachment stops the EC2 before detaching. The root volume goes with the instance.
 5. Default profile:
    - `scripts/ebs-snapshots.sh status`: no snapshot and no volume.
