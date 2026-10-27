@@ -25,7 +25,7 @@ us-east-1a, default VPC (route 0.0.0.0/0 -> IGW, default NACL)
 | `main.tf` | EC2, data volume, `aws_ebs_snapshot` per label in `snapshots` (created by Terraform or adopted through `snapshot_ids`), restored volume from `restore_from` |
 | `files/lab-ebs.sh` | on-instance helper (`sudo lab-ebs`), installed by cloud-init together with `fio` |
 | `files/cloud-init.yaml.tftpl` | user data |
-| `tests/lab-ebs-guards.sh` | local test of the device guards, with stubbed `lsblk`/`blkid` (no disk touched) |
+| `tests/lab-ebs-guards.sh`, `tests/take-thaw.sh` | local tests with stubs (no AWS, no disk): device guards, and the thaw path of `take` |
 | `../../scripts/ebs-snapshots.sh` | local: `status` (readonly), `blocks` and `take` (after `aws-lab`) |
 | `terraform.tfvars` | yours, per step, git-ignored: `snapshots`, `snapshot_ids`, `restore_from` |
 
@@ -168,7 +168,14 @@ What it does:
    - the instance is `Online` in SSM.
 2. `lab-ebs freeze 60` over SSM, with an auto-thaw on the instance after 60 s (covers the script, the network or the session dying).
 3. `ec2 create-snapshot`, with the same description and tags as `aws_ebs_snapshot.data`.
-4. `lab-ebs thaw` over SSM, right after the ID comes back. A `trap` sends the thaw too if step 3 fails.
+4. `lab-ebs thaw && lab-ebs probe` over SSM, right after the ID comes back. The probe is a write that has to finish within 5 s: "thawed" is only trusted after it.
+   - **SSM fails:** up to 3 tries.
+   - **SSM still down:** waits for the instance's auto-thaw and probes again. The output then warns that the snapshot may not be filesystem-consistent.
+   - **Still unconfirmed:** stops with exit 1 and the manual steps (console session, `lab-ebs thaw`, or a reboot, which clears a freeze).
+   - **If the freeze, `create-snapshot` or the script itself fails**, an `EXIT` trap runs the same path.
+   - **A snapshot that was created** but not adopted gets its ID printed, so it never goes unseen outside the state.
+
+   No path is a guarantee on its own: the trap does not run on `kill -9` or if the machine shuts down. That is why there are three independent layers: the script, the auto-thaw on the instance and the reboot.
 5. Prints the `frozen at` / `thawed at` timestamps (the freeze duration, measured) and the lines for the tfvars.
 
 Expected: a freeze of a few seconds (the SSM round trips are polled every 0.5 s), and `thawed at ...; /mnt/lab-data was frozen`.
@@ -181,10 +188,17 @@ snapshots    = ["s1"]
 snapshot_ids = { s1 = "snap-..." }
 EOF
 tf plan -out s1.tfplan                      # Plan: 1 to import, 0 to add, 0 to change, 0 to destroy
-tf apply s1.tfplan
+tf show -no-color s1.tfplan | grep -E '^  # .* (will be imported|will be created|will be updated|must be replaced|will be destroyed)'
 ```
 
-**If the plan shows a change or a replace** on `aws_ebs_snapshot.data["s1"]` instead of an import alone, do not apply. A tag or the description drifted from the script. An in-place tag update is harmless. A replace would take a new snapshot without the freeze.
+Apply only if the `grep` prints **exactly one line**: `# aws_ebs_snapshot.data["s1"] will be imported`. The saved plan is what gets applied: `tf apply s1.tfplan`.
+
+Anything else means do not apply. Delete `s1.tfplan` and review the tfvars.
+
+- **`will be updated in-place`:** a tag drifted from the script. Harmless, but the script and `locals.tags` must be brought back in sync.
+- **`must be replaced`:** the description or the `volume_id` differs, for example a snapshot of another volume. The apply would **delete** the imported snapshot and take a new one without the freeze.
+
+Nothing in Terraform blocks a plain `terraform apply` (without `-out`). The protection is this step: the saved plan, the `grep` and your review.
 
 ### 4. Change the data and take s2 with the app writing, no freeze (crash-consistent, through Terraform)
 
@@ -336,7 +350,10 @@ Risks:
 | `InvalidVolume.ZoneMismatch` | volume in another AZ (the stack does not allow this; it only happens in the CLI) | `describe-volumes` against `describe-instances` |
 | cold ≈ warm | blocks already read (by `verify`, a previous run or `init`) | redo step 6 in order, on a new restore |
 
-Local test of the guards, with no AWS and no disk: `bash terraform/ebs-snapshots/tests/lab-ebs-guards.sh terraform/ebs-snapshots/files/lab-ebs.sh`.
+Local tests, with no AWS and no disk (stubs):
+
+- `bash terraform/ebs-snapshots/tests/lab-ebs-guards.sh terraform/ebs-snapshots/files/lab-ebs.sh`: device guards (root, partitions, non-EBS, mounted, signatures, detach-ready).
+- `bash terraform/ebs-snapshots/tests/take-thaw.sh scripts/ebs-snapshots.sh`: `take` when the thaw over SSM fails, when SSM is down for good, and when `create-snapshot` or the freeze fails.
 
 ## Cleanup checklist
 

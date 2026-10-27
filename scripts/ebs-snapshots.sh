@@ -78,17 +78,65 @@ ssm_run() {
     --query StandardOutputContent --output text
 }
 
+# Thaws and then proves it with a write probe; "thawed" from fsfreeze alone is not trusted.
+# 1. Up to 3 tries over SSM (lab-ebs thaw && lab-ebs probe).
+# 2. If SSM is the problem, wait for the instance's own auto-thaw (armed by the freeze) and probe again.
+# 3. Still not confirmed: stop with the manual steps. A reboot also clears a freeze.
+# Sets frozen=no first, so the EXIT trap never runs it twice.
+unfreeze() {
+  local out i wait_s
+  frozen=no
+  for i in 1 2 3; do
+    if out="$(ssm_run "$instance" "lab-ebs thaw && lab-ebs probe")"; then
+      echo "$out"
+      [[ "$out" == *"was not frozen"* ]] && echo "WARNING: the auto-thaw ran first; $snap_id may not be filesystem-consistent" >&2
+      return 0
+    fi
+    echo "WARNING: thaw attempt $i of 3 failed" >&2
+    sleep $((2 * i))
+  done
+  wait_s=$(( auto_thaw_at - $(date +%s) ))
+  if (( wait_s > 0 )); then
+    echo "Waiting ${wait_s}s for the auto-thaw on the instance..." >&2
+    sleep "$wait_s"
+  fi
+  if out="$(ssm_run "$instance" "lab-ebs probe")"; then
+    echo "$out (thawed by the auto-thaw; $snap_id may not be filesystem-consistent)"
+    return 0
+  fi
+  cat >&2 <<EOF2
+ERROR: could not confirm that /mnt/lab-data is thawed on $instance.
+  1. Open a session (console: EC2 > instance > Connect > Session Manager) and run:
+       sudo lab-ebs thaw; sudo lab-ebs probe
+  2. If no session opens either: aws ec2 reboot-instances --instance-ids $instance
+     (a freeze does not survive a reboot; remount with lab-ebs mount afterwards)
+EOF2
+  return 1
+}
+
+on_exit() {
+  local rc=$?
+  [[ "$frozen" == yes ]] && { unfreeze || rc=1; }
+  if [[ -n "$snap_id" && "$done_ok" != yes ]]; then
+    echo "NOTE: $snap_id was created and is outside the state: import it (snapshot_ids) or delete it." >&2
+  elif [[ "$create_tried" == yes && -z "$snap_id" ]]; then
+    echo "NOTE: create-snapshot failed on the client side; it may still exist. Check: $0 status" >&2
+  fi
+  exit "$rc"
+}
+
 # freeze -> CreateSnapshot -> thaw from one place, so the freeze lasts only as long as AWS takes to
 # accept the snapshot (state "pending"). The tags and the description match aws_ebs_snapshot.data in
 # main.tf, so the import block adopts it with no diff; keep them in sync with locals.tags.
 take() {
-  local label="${1:?usage: take <label> [--no-freeze]}" freeze=yes instance volume left arn snap thaw_out
-  [[ "${2:-}" == --no-freeze ]] && freeze=no
+  local label="${1:?usage: take <label> [--no-freeze]}" want_freeze=yes volume left arn out
+  frozen=no snap_id="" done_ok=no auto_thaw_at=0 create_tried=no
+  [[ "${2:-}" == --no-freeze ]] && want_freeze=no
   [[ "$label" =~ ^[a-z0-9-]{1,20}$ ]] || die "label: lowercase letters, digits and '-', up to 20 characters"
 
   arn="$(aws sts get-caller-identity --query Arn --output text)"
   [[ "$arn" == *":assumed-role/terraform-lab-role/"* ]] || die "running as $arn; run aws-lab first"
-  # aws-lab exports AWS_CREDENTIAL_EXPIRATION; a session that ends mid-freeze leaves it to the auto-thaw.
+  # aws-lab exports AWS_CREDENTIAL_EXPIRATION; credentials expiring mid-freeze would break the thaw.
   if [[ -n "${AWS_CREDENTIAL_EXPIRATION:-}" ]]; then
     left=$(( $(date -d "$AWS_CREDENTIAL_EXPIRATION" +%s) - $(date +%s) ))
     (( left > 900 )) || die "aws-lab session ends in $((left / 60)) min; run aws-lab again"
@@ -107,38 +155,47 @@ take() {
         --filters Key=InstanceIds,Values="$instance" --query 'InstanceInformationList[0].PingStatus' \
         --output text)" == Online ]] || die "$instance is not Online in SSM"
 
-  if [[ "$freeze" == yes ]]; then
-    # 60 s auto-thaw on the instance covers this script dying, or the network, between the two calls.
+  trap on_exit EXIT
+  if [[ "$want_freeze" == yes ]]; then
+    # Marked frozen before the call: if the freeze ran but its result got lost, the thaw still goes.
+    frozen=yes
     ssm_run "$instance" "lab-ebs freeze 60"
-    trap 'ssm_run "$instance" "lab-ebs thaw" >&2 || echo "WARNING: thaw failed; the auto-thaw runs within 60 s" >&2' EXIT
+    # The instance's timer started before ssm_run returned, so this is at or after its auto-thaw.
+    auto_thaw_at=$(( $(date +%s) + 65 ))
   fi
 
-  snap="$(aws ec2 create-snapshot --region "$region" --volume-id "$volume" \
+  create_tried=yes
+  out="$(aws ec2 create-snapshot --region "$region" --volume-id "$volume" \
     --description "Day 4 lab: data volume, snapshot $label" \
     --tag-specifications "ResourceType=snapshot,Tags=[{Key=Environment,Value=lab},{Key=Lab,Value=ebs-snapshots},{Key=Day,Value=4},{Key=ManagedBy,Value=terraform},{Key=Stack,Value=terraform/ebs-snapshots},{Key=Name,Value=lab-ebs-snap-$label},{Key=SnapshotLabel,Value=$label}]" \
     --query '[SnapshotId,State,StartTime]' --output text)"
+  snap_id="${out%%[[:space:]]*}"
+  echo "created: $out"
 
-  if [[ "$freeze" == yes ]]; then
-    thaw_out="$(ssm_run "$instance" "lab-ebs thaw")"
-    trap - EXIT
-    echo "$thaw_out"
+  if [[ "$frozen" == yes ]]; then
+    unfreeze
   fi
-  echo "created: $snap"
+  done_ok=yes
   echo
-  echo "Add to terraform/ebs-snapshots/terraform.tfvars, then plan (expect: 1 to import, 0 to add):"
+  echo "Add to terraform/ebs-snapshots/terraform.tfvars, then plan -out and inspect it (README step 3):"
   echo "  snapshots    = [..., \"$label\"]"
-  echo "  snapshot_ids = { ..., $label = \"${snap%%[[:space:]]*}\" }"
+  echo "  snapshot_ids = { ..., $label = \"$snap_id\" }"
 }
 
-case "${1:-status}" in
-  status) status ;;
-  blocks)
-    first="${2:?usage: $0 blocks <snap-id> [second-snap-id]}"
-    if [[ -n "${3:-}" ]]; then
-      count_blocks list-changed-blocks --first-snapshot-id "$first" --second-snapshot-id "$3"
-    else
-      count_blocks list-snapshot-blocks --snapshot-id "$first"
-    fi ;;
-  take) shift; take "$@" ;;
-  *) echo "usage: $0 status | blocks <snap-id> [second-snap-id] | take <label> [--no-freeze]" >&2; exit 1 ;;
-esac
+main() {
+  case "${1:-status}" in
+    status) status ;;
+    blocks)
+      first="${2:?usage: $0 blocks <snap-id> [second-snap-id]}"
+      if [[ -n "${3:-}" ]]; then
+        count_blocks list-changed-blocks --first-snapshot-id "$first" --second-snapshot-id "$3"
+      else
+        count_blocks list-snapshot-blocks --snapshot-id "$first"
+      fi ;;
+    take) shift; take "$@" ;;
+    *) echo "usage: $0 status | blocks <snap-id> [second-snap-id] | take <label> [--no-freeze]" >&2; exit 1 ;;
+  esac
+}
+
+# Sourcing it (tests) defines the functions without running anything.
+[[ "${BASH_SOURCE[0]}" != "$0" ]] || main "$@"

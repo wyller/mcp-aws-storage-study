@@ -24,6 +24,7 @@ sudo lab-ebs <command>
   verify <label> [dir]       check a dir (default /mnt/lab-restored) against a manifest
   freeze [seconds]           sync + fsfreeze /mnt/lab-data; thaws on its own after N s (default 120)
   thaw                       unfreeze /mnt/lab-data now
+  probe                      exit 0 only if /mnt/lab-data accepts a write within 5 s (not frozen)
   writer start|stop          simulated app appending records to <data>/app/journal.log
   writer check <dir> [time]  integrity of a journal.log; time = snapshot StartTime (ISO 8601)
   latency <name> [dir]       fio randread 4k QD1, 60 s, read-only, on the dataset files of dir
@@ -165,6 +166,23 @@ cmd_thaw() {
   echo "thawed at $(date -u +%FT%T.%3NZ); $DATA was $was"
 }
 
+# A write to a frozen filesystem blocks in uninterruptible sleep, so a timeout can't kill it. The
+# probe runs in the background, and an unfinished write after 5 s means frozen. It completes on its own at the thaw.
+cmd_probe() {
+  local pid i
+  require_mount "$DATA"
+  touch "$DATA/.lab-ebs-probe" </dev/null >/dev/null 2>&1 &
+  pid=$!
+  for i in $(seq 1 10); do
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.5
+  done
+  kill -0 "$pid" 2>/dev/null && die "$DATA did not take a write in 5 s: still frozen"
+  wait "$pid" || die "probe write to $DATA failed"
+  rm -f "$DATA/.lab-ebs-probe"
+  echo "WRITABLE: $DATA accepts writes"
+}
+
 # Each record: seq, epoch ms, 16 hex chars of sha256(seq). Plain appends with no fsync, like an
 # app that trusts the page cache; check shows how much of it reached a crash-consistent snapshot.
 cmd_writer() {
@@ -255,7 +273,7 @@ main() {
   case "$cmd" in
     devices|status) cmd_status ;;
     detach-ready) cmd_detach_ready "$@" ;;
-    prepare|mount|umount|seed|mutate|manifest|verify|freeze|thaw|writer|latency|init) "cmd_$cmd" "$@" ;;
+    prepare|mount|umount|seed|mutate|manifest|verify|freeze|thaw|probe|writer|latency|init) "cmd_$cmd" "$@" ;;
     *) usage; exit 1 ;;
   esac
 }
