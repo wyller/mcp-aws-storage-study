@@ -1,0 +1,16 @@
+#cloud-config
+# Rendered by main.tf (templatefile). Runs once, on the first boot.
+# fio and amazon-efs-utils come from the AL2023 repos (needs the public IPv4: no NAT here).
+package_update: true
+packages:
+  - amazon-efs-utils
+  - fio
+write_files:
+  - path: /usr/local/bin/lab-efs
+    permissions: "0755"
+    encoding: gz+b64
+    content: ${lab_efs_gzb64}
+  - path: /etc/lab-efs.env
+    permissions: "0644"
+    content: |
+      ${indent(6, env)}

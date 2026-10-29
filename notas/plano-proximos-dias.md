@@ -42,13 +42,36 @@ Redefinido em 2026-10-22: EBS snapshots passou para o Dia 4, e EFS e Backup desc
 - **Limpeza:** snapshots ficam fora do state se forem criados pelo console. O inventário pega.
 - **Código pronto** (commit `665ce3a`): `create_snapshot` e `restore_from_snapshot` em `terraform/ebs`, desligados por padrão.
 
-## Dia 5: EFS contra EBS
+## Dia 5: EFS Regional compartilhado entre duas AZs
 
-- **Hipótese:** o EFS no modo Elastic escala o throughput sem provisionar, mas a latência por operação é maior que a do EBS. Com arquivos pequenos e QD baixo, ele perde de muito.
-- **Lab:** EFS com mount target numa AZ, montado via NFS na EC2. Mesmo fio da parte 2 (seq 1M) e um teste de arquivos pequenos. Comparar a latência com o gp3.
-- **Como cobra:** GB-mês por classe (Standard e IA), mais leitura e escrita por GB no modo Elastic. O mount target não cobra por hora.
-- **Custo do lab:** < US$ 0,10.
-- **Limpeza:** o mount target precisa sair antes do file system. O Terraform cuida da ordem.
+Redefinido em 2026-10-29 (revisão do GPT): de um cliente e um mount target para dois de cada. Stack em `terraform/efs` ([README](../terraform/efs/README.md)), preparado e revisado, ainda não aplicado.
+
+- **Hipóteses:**
+  1. Cada cliente usa o mount target da própria AZ (sem custo cross-AZ), e o que um grava o outro vê depois do `close()`.
+  2. Sem lock, dois clientes incrementando o mesmo arquivo perdem updates; com `flock`, não.
+  3. Rede, policy e POSIX falham de jeitos diferentes: timeout sem resposta, `access denied by server` na hora, e `Permission denied` com o mount funcionando.
+  4. A latência por operação do EFS é bem maior que a do gp3; o throughput vem do paralelismo.
+- **Lab:**
+  - EFS Regional, Elastic, criptografado, backup automático desligado;
+  - dois mount targets (1a e 1b) e duas EC2 t3.micro AL2023 só com SSM;
+  - access points `app` (1001, `/lab`) e `other` (1002, `/`);
+  - file system policy liberando só a `lab-storage-ec2-ssm`, com TLS obrigatório e sem `ClientRootAccess` (root squash). A role compartilhada não muda.
+  - Ordem: tour pela Console (somente leitura), DNS por AZ, montagem TLS + IAM, compartilhamento, contador com e sem lock, permissões, falhas de policy (com `allow_anonymous` opcional), bloqueio do 2049 só com conexões novas, **uma** rodada de performance com limite, e cross-AZ opcional.
+- **Como cobra:**
+  - GB-mês de Standard;
+  - leitura (US$ 0,03/GB) e escrita (US$ 0,06/GB) no Elastic, com mínimo de 32 KiB por operação de dados e 4 KiB por metadado;
+  - cross-AZ: US$ 0,01/GB em cada sentido.
+  - Mount target e access point não cobram. A t3 em `unlimited` cobra surplus de CPU acima de 20%.
+- **Custo do lab:** ~US$ 0,17 em 4 h. Teto: US$ 1.
+- **Feito em 2026-10-29** ([nota](efs-dia5.md)), em 1 h 53 min e por ~US$ 0,10 (estimado).
+  - As quatro hipóteses foram confirmadas.
+  - Um nome novo levou até 57 s com `stat`/`open` (cache negativo do NFS), e 10–22 ms com `listdir`.
+  - Contador: 302/600 sem lock, 600/600 com `flock`.
+  - Faltaram o `allow_anonymous` (7b), o cross-AZ (10), as mount options e a conferência no Cost Explorer.
+- **Limpeza:**
+  - `plan -destroy` com 11 recursos; o Terraform tira os mount targets antes do file system.
+  - Conferir o SG dos mount targets (as ENIs demoram a sair) e que não existe `aws/efs/automatic-backup-vault`, que o inventário não conta.
+  - Depois, a checagem visual na Console.
 
 ## Dia 6: AWS Backup e restore testado
 

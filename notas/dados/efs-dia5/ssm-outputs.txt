@@ -1,0 +1,315 @@
+########## 2026-10-29T08:29:38.938000-03:00 | day 5 lab: lab-efs status | i-00484ed8e1c1702e6 | Success
+== /etc/lab-efs.env
+FS_ID=fs-03bf37dc9af454f83
+AP_APP=fsap-0643da71954c6efa9
+AP_OTHER=fsap-064b7d123c16752c7
+CLIENT=b
+REGION=us-east-1
+== cloud-init: status: done
+== packages
+amazon-efs-utils-3.3.4-1.amzn2023.x86_64
+fio-3.32-2.amzn2023.0.3.x86_64
+nfs-utils-2.5.4-2.rc3.amzn2023.0.3.x86_64
+== NFS mounts
+== TLS tunnels
+(none)
+	
+########## 2026-10-29T08:29:38.938000-03:00 | day 5 lab: lab-efs status | i-0f3f1fa2f79d90646 | Success
+== /etc/lab-efs.env
+FS_ID=fs-03bf37dc9af454f83
+AP_APP=fsap-0643da71954c6efa9
+AP_OTHER=fsap-064b7d123c16752c7
+CLIENT=a
+REGION=us-east-1
+== cloud-init: status: done
+== packages
+amazon-efs-utils-3.3.4-1.amzn2023.x86_64
+fio-3.32-2.amzn2023.0.3.x86_64
+nfs-utils-2.5.4-2.rc3.amzn2023.0.3.x86_64
+== NFS mounts
+== TLS tunnels
+(none)
+	
+########## 2026-10-29T08:31:05.234000-03:00 | day 5 lab: lab-efs mount app | i-00484ed8e1c1702e6 | Success
+mount -t efs -o tls,iam,accesspoint=fsap-0643da71954c6efa9 fs-03bf37dc9af454f83:/ /mnt/efs-app
+/mnt/efs-app 127.0.0.1:/ nfs4
+	
+########## 2026-10-29T08:31:05.234000-03:00 | day 5 lab: lab-efs mount app | i-0f3f1fa2f79d90646 | Success
+mount -t efs -o tls,iam,accesspoint=fsap-0643da71954c6efa9 fs-03bf37dc9af454f83:/ /mnt/efs-app
+/mnt/efs-app 127.0.0.1:/ nfs4
+	
+########## 2026-10-29T08:31:38.937000-03:00 | day 5 lab: lab-efs verify app | i-00484ed8e1c1702e6 | Success
+/mnt/efs-app 127.0.0.1:/ nfs4
+options: rw,relatime,vers=4.1,rsize=1048576,wsize=1048576,namlen=255,hard,noresvport,proto=tcp,port=20942,timeo=600,retrans=2,sec=sys,clientaddr=127.0.0.1,local_lock=none,addr=127.0.0.1
+mount.efs: /usr/sbin/mount.efs Version: 3.3.4
+PASS  TLS: served by the local tunnel (127.0.0.1)
+PASS  TLS: a tunnel process is running
+        26131 /sbin/efs-proxy /var/run/efs/stunnel-config.fs-03bf37dc9af454f83.mnt.efs-app.20942 --tls --no-direct-s3-read
+PASS  NFS 4.1
+PASS  rsize and wsize 1 MiB
+PASS  hard mount (retries forever instead of returning EIO)
+PASS  noresvport (a new source port on reconnect)
+PASS  df shows the 8 EiB virtual size
+        Filesystem      Size  Used Avail Use% Mounted on
+        127.0.0.1:/     8.0E     0  8.0E   0% /mnt/efs-app
+PASS  a file created by root is owned by 1001:1001 on the server
+        1001:1001 /mnt/efs-app/runs/.verify-b
+0 check(s) differ from the expected
+	
+########## 2026-10-29T08:31:38.937000-03:00 | day 5 lab: lab-efs verify app | i-0f3f1fa2f79d90646 | Success
+/mnt/efs-app 127.0.0.1:/ nfs4
+options: rw,relatime,vers=4.1,rsize=1048576,wsize=1048576,namlen=255,hard,noresvport,proto=tcp,port=20478,timeo=600,retrans=2,sec=sys,clientaddr=127.0.0.1,local_lock=none,addr=127.0.0.1
+mount.efs: /usr/sbin/mount.efs Version: 3.3.4
+PASS  TLS: served by the local tunnel (127.0.0.1)
+PASS  TLS: a tunnel process is running
+        26050 /sbin/efs-proxy /var/run/efs/stunnel-config.fs-03bf37dc9af454f83.mnt.efs-app.20478 --tls --no-direct-s3-read
+PASS  NFS 4.1
+PASS  rsize and wsize 1 MiB
+PASS  hard mount (retries forever instead of returning EIO)
+PASS  noresvport (a new source port on reconnect)
+PASS  df shows the 8 EiB virtual size
+        Filesystem      Size  Used Avail Use% Mounted on
+        127.0.0.1:/     8.0E     0  8.0E   0% /mnt/efs-app
+PASS  a file created by root is owned by 1001:1001 on the server
+        1001:1001 /mnt/efs-app/runs/.verify-a
+0 check(s) differ from the expected
+	
+########## 2026-10-29T09:00:59.657000-03:00 | day 5 lab: lab-efs status | i-00484ed8e1c1702e6 | Success
+== /etc/lab-efs.env
+FS_ID=fs-03bf37dc9af454f83
+AP_APP=fsap-0643da71954c6efa9
+AP_OTHER=fsap-064b7d123c16752c7
+CLIENT=b
+REGION=us-east-1
+== cloud-init: status: done
+== packages
+amazon-efs-utils-3.3.4-1.amzn2023.x86_64
+fio-3.32-2.amzn2023.0.3.x86_64
+nfs-utils-2.5.4-2.rc3.amzn2023.0.3.x86_64
+== NFS mounts
+TARGET       SOURCE      OPTIONS
+/mnt/efs-app 127.0.0.1:/ rw,relatime,vers=4.1,rsize=1048576,wsize=1048576,namlen=255,hard,noresvport,proto=tcp,port=20942,timeo=600,retrans=2,sec=sys,clientaddr=127.0.0.1,local_lock=none,addr=127.0.0.1
+== TLS tunnels
+26131 /sbin/efs-proxy /var/run/efs/stunnel-config.fs-03bf37dc9af454f83.mnt.efs-app.20942 --tls --no-direct-s3-read
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:00:59.657000-03:00 | day 5 lab: lab-efs status | i-0f3f1fa2f79d90646 | Success
+== /etc/lab-efs.env
+FS_ID=fs-03bf37dc9af454f83
+AP_APP=fsap-0643da71954c6efa9
+AP_OTHER=fsap-064b7d123c16752c7
+CLIENT=a
+REGION=us-east-1
+== cloud-init: status: done
+== packages
+amazon-efs-utils-3.3.4-1.amzn2023.x86_64
+fio-3.32-2.amzn2023.0.3.x86_64
+nfs-utils-2.5.4-2.rc3.amzn2023.0.3.x86_64
+== NFS mounts
+TARGET       SOURCE      OPTIONS
+/mnt/efs-app 127.0.0.1:/ rw,relatime,vers=4.1,rsize=1048576,wsize=1048576,namlen=255,hard,noresvport,proto=tcp,port=20478,timeo=600,retrans=2,sec=sys,clientaddr=127.0.0.1,local_lock=none,addr=127.0.0.1
+== TLS tunnels
+26050 /sbin/efs-proxy /var/run/efs/stunnel-config.fs-03bf37dc9af454f83.mnt.efs-app.20478 --tls --no-direct-s3-read
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:09:13.633000-03:00 | day 5 lab: lab-efs counter init c1 | i-0f3f1fa2f79d90646 | Success
+counter c1 = 0
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:09:18.634000-03:00 | day 5 lab: lab-efs counter run c1 300 nolock | i-00484ed8e1c1702e6 | Success
+client b: 300 increments (nolock) in 6108 ms
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:09:18.634000-03:00 | day 5 lab: lab-efs counter run c1 300 nolock | i-0f3f1fa2f79d90646 | Success
+client a: 300 increments (nolock) in 6105 ms
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:09:34.211000-03:00 | day 5 lab: lab-efs counter check c1 600 | i-0f3f1fa2f79d90646 | Success
+counter c1 = '302', expected 600: LOST 298 update(s)
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:09:45.937000-03:00 | day 5 lab: lab-efs counter init c2 | i-0f3f1fa2f79d90646 | Success
+counter c2 = 0
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:09:51.326000-03:00 | day 5 lab: lab-efs counter run c2 300 lock | i-00484ed8e1c1702e6 | Success
+client b: 300 increments (lock) in 19900 ms
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:09:51.326000-03:00 | day 5 lab: lab-efs counter run c2 300 lock | i-0f3f1fa2f79d90646 | Success
+client a: 300 increments (lock) in 23705 ms
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:10:22.647000-03:00 | day 5 lab: lab-efs counter check c2 600 | i-0f3f1fa2f79d90646 | Success
+counter c2 = 600: MATCH
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:29:16.494000-03:00 | day 5 lab: lab-efs mount other | i-0f3f1fa2f79d90646 | Success
+mount -t efs -o tls,iam,accesspoint=fsap-064b7d123c16752c7 fs-03bf37dc9af454f83:/ /mnt/efs-other
+/mnt/efs-other 127.0.0.1:/ nfs4
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:29:24.235000-03:00 | day 5 lab: lab-efs mount root | i-0f3f1fa2f79d90646 | Success
+mount -t efs -o tls,iam fs-03bf37dc9af454f83:/ /mnt/efs-root
+/mnt/efs-root 127.0.0.1:/ nfs4
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:29:55.814000-03:00 | day 5 lab: lab-efs perms | i-0f3f1fa2f79d90646 | Success
+PASS  app AP: root creates a file
+PASS  app AP: its owner is the AP identity 1001:1001, not 0:0
+        1001:1001 -rw-r--r-- /mnt/efs-app/runs/perms-a/by-root
+PASS  app AP: user nobody (65534) also writes, as 1001:1001
+PASS  app AP: chown to 0:0 is refused (every call runs as 1001)
+        chown: changing ownership of '/mnt/efs-app/runs/perms-a/by-root': Operation not permitted
+PASS  app AP: chmod works (1001 owns the file)
+PASS  root mount: /lab is 1001:1001 drwxr-x---
+        1001:1001 drwxr-x--- /mnt/efs-root/lab
+PASS  root mount: root is squashed to 65534 and cannot write to /
+        touch: cannot touch '/mnt/efs-root/squash-a': Permission denied
+PASS  root mount: squashed root cannot list /lab (0750)
+        ls: cannot open directory '/mnt/efs-root/lab': Permission denied
+PASS  other AP: 1002 lists / (0755)
+        lab
+PASS  other AP: 1002 cannot enter /lab (not owner, not group)
+        ls: cannot open directory '/mnt/efs-other/lab': Permission denied
+PASS  other AP: 1002 cannot write to /
+        touch: cannot touch '/mnt/efs-other/other-a': Permission denied
+0 check(s) differ from the expected
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:31:42.301000-03:00 | day 5 lab: lab-efs umount other | i-0f3f1fa2f79d90646 | Success
+/mnt/efs-other: unmounted
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:31:49.197000-03:00 | day 5 lab: lab-efs umount root | i-0f3f1fa2f79d90646 | Success
+/mnt/efs-root: unmounted
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:33:40.027000-03:00 | day 5 lab: lab-efs try notls | i-0f3f1fa2f79d90646 | Success
+mount -t efs  fs-03bf37dc9af454f83:/ /mnt/efs-try (timeout 45 s)
+  | b'mount.nfs4: access denied by server while mounting 127.0.0.1:/'
+exit 32 after 0 s
+RESULT: POLICY (the server answered and refused: file system policy, TLS or IAM identity)
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:33:46.993000-03:00 | day 5 lab: lab-efs try noiam | i-0f3f1fa2f79d90646 | Success
+mount -t efs -o tls fs-03bf37dc9af454f83:/ /mnt/efs-try (timeout 45 s)
+  | b'mount.nfs4: access denied by server while mounting 127.0.0.1:/'
+exit 32 after 0 s
+RESULT: POLICY (the server answered and refused: file system policy, TLS or IAM identity)
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:35:38.470000-03:00 | day 5 lab: lab-efs umount all | i-00484ed8e1c1702e6 | Success
+/mnt/efs-app: unmounted
+/mnt/efs-other: not mounted
+/mnt/efs-root: not mounted
+/mnt/efs-try: not mounted
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:35:38.470000-03:00 | day 5 lab: lab-efs umount all | i-0f3f1fa2f79d90646 | Success
+/mnt/efs-app: unmounted
+/mnt/efs-other: not mounted
+/mnt/efs-root: not mounted
+/mnt/efs-try: not mounted
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:35:50.202000-03:00 | day 5 lab: lab-efs net | i-00484ed8e1c1702e6 | Success
+client b in us-east-1b
+fs-03bf37dc9af454f83.efs.us-east-1.amazonaws.com -> 172.31.35.96
+TCP 172.31.35.96:2049 open
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:35:50.202000-03:00 | day 5 lab: lab-efs net | i-0f3f1fa2f79d90646 | Success
+client a in us-east-1a
+fs-03bf37dc9af454f83.efs.us-east-1.amazonaws.com -> 172.31.31.18
+TCP 172.31.31.18:2049 open
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:45:03.671000-03:00 | day 5 lab: lab-efs net | i-00484ed8e1c1702e6 | Success
+client b in us-east-1b
+fs-03bf37dc9af454f83.efs.us-east-1.amazonaws.com -> 172.31.35.96
+TCP 172.31.35.96:2049 no answer in 3 s (SG, NACL or route)
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:45:14.075000-03:00 | day 5 lab: lab-efs try blocked | i-00484ed8e1c1702e6 | Success
+mount -t efs -o tls,iam,accesspoint=fsap-0643da71954c6efa9 fs-03bf37dc9af454f83:/ /mnt/efs-try (timeout 45 s)
+  | Mount attempt 1/3 failed due to timeout after 15 sec, wait 0 sec before next attempt.
+  | Mount attempt 2/3 failed due to timeout after 15 sec, wait 0 sec before next attempt.
+exit 124 after 45 s
+RESULT: NETWORK (no answer from the mount target: SG, NACL, route or DNS)
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:50:04.787000-03:00 | day 5 lab: lab-efs net | i-00484ed8e1c1702e6 | Success
+client b in us-east-1b
+fs-03bf37dc9af454f83.efs.us-east-1.amazonaws.com -> 172.31.35.96
+TCP 172.31.35.96:2049 open
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:50:04.787000-03:00 | day 5 lab: lab-efs net | i-0f3f1fa2f79d90646 | Success
+client a in us-east-1a
+fs-03bf37dc9af454f83.efs.us-east-1.amazonaws.com -> 172.31.31.18
+TCP 172.31.31.18:2049 open
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:50:17.028000-03:00 | day 5 lab: lab-efs mount app | i-00484ed8e1c1702e6 | Success
+mount -t efs -o tls,iam,accesspoint=fsap-0643da71954c6efa9 fs-03bf37dc9af454f83:/ /mnt/efs-app
+/mnt/efs-app 127.0.0.1:/ nfs4
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:50:17.028000-03:00 | day 5 lab: lab-efs mount app | i-0f3f1fa2f79d90646 | Success
+mount -t efs -o tls,iam,accesspoint=fsap-0643da71954c6efa9 fs-03bf37dc9af454f83:/ /mnt/efs-app
+/mnt/efs-app 127.0.0.1:/ nfs4
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:50:28.912000-03:00 | day 5 lab: lab-efs probe | i-00484ed8e1c1702e6 | Success
+probe OK in 38 ms
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:50:28.912000-03:00 | day 5 lab: lab-efs probe | i-0f3f1fa2f79d90646 | Success
+probe OK in 50 ms
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T09:51:40.341000-03:00 | day 5 lab: lab-efs perf efs-a | i-0f3f1fa2f79d90646 | Success
+fio in /mnt/efs-app/runs/perf-a (efs); every job capped by size or op count and by 30 s
+seqwrite           write     29.4 MiB/s       29 IOPS  p50  30.80 ms  p99  54.26 ms
+seqread            read      71.8 MiB/s       72 IOPS  p50  13.30 ms  p99  18.74 ms
+seqwrite-p4        write    113.9 MiB/s      114 IOPS  p50  29.49 ms  p99  55.84 ms
+randread-4k        read       1.2 MiB/s      311 IOPS  p50   3.10 ms  p99   6.52 ms
+randwrite-4k       write      0.4 MiB/s       93 IOPS  p50  10.29 ms  p99  15.14 ms
+smallfiles: create 300 x 4 KiB + fsync 4270 ms (70 files/s); ls -l 27 ms; rm 1870 ms
+results: /tmp/lab-fio-efs-efs-a-*.json (scripts/collect-fio.sh)
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T10:00:02.513000-03:00 | day 5 lab: lab-efs perf local-a local | i-0f3f1fa2f79d90646 | Success
+fio in /var/tmp/lab-efs-perf (local); every job capped by size or op count and by 30 s
+seqwrite           write    292.9 MiB/s      293 IOPS  p50   3.29 ms  p99   3.75 ms
+seqread            read     395.1 MiB/s      395 IOPS  p50   1.74 ms  p99   8.09 ms
+seqwrite-p4        write    174.1 MiB/s      174 IOPS  p50  31.85 ms  p99  39.58 ms
+randread-4k        read       6.7 MiB/s     1712 IOPS  p50   0.59 ms  p99   0.81 ms
+randwrite-4k       write      4.4 MiB/s     1115 IOPS  p50   0.90 ms  p99   1.12 ms
+smallfiles: create 300 x 4 KiB + fsync 1138 ms (263 files/s); ls -l 5 ms; rm 7 ms
+results: /tmp/lab-fio-efs-local-a-*.json (scripts/collect-fio.sh)
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T10:01:21.626000-03:00 | day 5 lab: lab-efs clean | i-00484ed8e1c1702e6 | Success
+clean: 0 entries left in /mnt/efs-app
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T10:01:21.626000-03:00 | day 5 lab: lab-efs clean | i-0f3f1fa2f79d90646 | Success
+clean: 0 entries left in /mnt/efs-app
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T10:01:33.785000-03:00 | day 5 lab: lab-efs umount all | i-00484ed8e1c1702e6 | Success
+/mnt/efs-app: unmounted
+/mnt/efs-other: not mounted
+/mnt/efs-root: not mounted
+/mnt/efs-try: not mounted
+	lab-efs from the repo, sha256 294a5149f07d
+
+########## 2026-10-29T10:01:33.785000-03:00 | day 5 lab: lab-efs umount all | i-0f3f1fa2f79d90646 | Success
+/mnt/efs-app: unmounted
+/mnt/efs-other: not mounted
+/mnt/efs-root: not mounted
+/mnt/efs-try: not mounted
+	lab-efs from the repo, sha256 294a5149f07d
+

@@ -1,0 +1,9 @@
+DataReadIOBytes         0.258 GiB
+DataWriteIOBytes        0.383 GiB
+MetadataIOBytes         0.055 GiB
+TotalIOBytes            0.695 GiB
+MeteredIOBytes          0.459 GiB
+ClientConnections           4 max per minute (77 minutes with data)
+Elastic cost floor: US$ 0.0340 (reads 0.03/GB, writes and metadata counted as writes 0.06/GB)
+i-0f3f1fa2f79d90646 CPU avg   0.7% (baseline 20%), surplus charged 0.0 credits = US$ 0.0000
+i-00484ed8e1c1702e6 CPU avg   0.8% (baseline 20%), surplus charged 0.0 credits = US$ 0.0000

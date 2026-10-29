@@ -1,0 +1,40 @@
+CommandId	RequestedDateTime	Comment	Status	InstanceIds
+3f8e83dc-c6e0-475d-8855-f3bba3e2a3f2	2026-10-29T08:29:38.938000-03:00	day 5 lab: lab-efs status	Success	i-00484ed8e1c1702e6,i-0f3f1fa2f79d90646
+f7ad8404-3444-401e-b9a0-f1d05e14caee	2026-10-29T08:31:05.234000-03:00	day 5 lab: lab-efs mount app	Success	i-00484ed8e1c1702e6,i-0f3f1fa2f79d90646
+7ad1cbfa-b701-40f1-923c-edbb9e539f59	2026-10-29T08:31:38.937000-03:00	day 5 lab: lab-efs verify app	Success	i-00484ed8e1c1702e6,i-0f3f1fa2f79d90646
+b01eb54b-5095-412d-8ee9-f727f94c8c28	2026-10-29T08:32:45.235000-03:00	day 5 lab: lab-efs share read s1 90	Success	i-00484ed8e1c1702e6
+b27c504f-c229-4f74-a116-d57e02c5cd2a	2026-10-29T08:32:49.889000-03:00	day 5 lab: lab-efs share write s1	Success	i-0f3f1fa2f79d90646
+8c934670-31aa-48db-b371-6cce980e58f9	2026-10-29T08:33:20.001000-03:00	day 5 lab: lab-efs share read s1 90	Success	i-0f3f1fa2f79d90646
+04c496e8-7837-4b80-803a-157823532f82	2026-10-29T08:33:24.763000-03:00	day 5 lab: lab-efs share write s1	Success	i-00484ed8e1c1702e6
+2d31dd53-5031-4940-93f0-bb5869735c6e	2026-10-29T08:43:33.583000-03:00	day 5 lab: lab-efs share read s1 90	Success	i-00484ed8e1c1702e6
+ba0cda1c-abb0-4da9-8522-fd081899b7f2	2026-10-29T08:43:38.230000-03:00	day 5 lab: lab-efs share write s1	Failed	i-0f3f1fa2f79d90646
+648af116-af95-484d-8331-43a21458a34b	2026-10-29T08:43:46.381000-03:00	day 5 lab: lab-efs share read s1 90	Success	i-0f3f1fa2f79d90646
+be53cb73-64d3-4358-88c7-3cfc3f9d18ac	2026-10-29T08:43:51.025000-03:00	day 5 lab: lab-efs share write s1	Failed	i-00484ed8e1c1702e6
+79bcd0dc-d644-4dc6-9430-0f111188def6	2026-10-29T09:00:59.657000-03:00	day 5 lab: lab-efs status	Success	i-00484ed8e1c1702e6,i-0f3f1fa2f79d90646
+535ca2a4-ad02-4970-9dba-3a5796d31ff4	2026-10-29T09:02:03.135000-03:00	day 5 lab: visibility writer v-1029-120155	Success	i-0f3f1fa2f79d90646
+5c0ee363-f9e9-4af8-b972-ffb1bd6064f0	2026-10-29T09:02:05.060000-03:00	day 5 lab: visibility reader v-1029-120155	Success	i-00484ed8e1c1702e6
+b1b4b696-2ddc-45b3-9f67-84adffae2b96	2026-10-29T09:09:13.633000-03:00	day 5 lab: lab-efs counter init c1	Success	i-0f3f1fa2f79d90646
+75de5165-6a0d-4765-aec0-75c8dea003a1	2026-10-29T09:09:18.634000-03:00	day 5 lab: lab-efs counter run c1 300 nolock	Success	i-00484ed8e1c1702e6,i-0f3f1fa2f79d90646
+ebfbaed1-f9ea-47d2-b3b7-7e99e9fa3d02	2026-10-29T09:09:34.211000-03:00	day 5 lab: lab-efs counter check c1 600	Success	i-0f3f1fa2f79d90646
+b178c341-f382-4490-ad2b-995ae908ca9a	2026-10-29T09:09:45.937000-03:00	day 5 lab: lab-efs counter init c2	Success	i-0f3f1fa2f79d90646
+24b665b8-3a7c-4ee3-a50b-41c952876ec2	2026-10-29T09:09:51.326000-03:00	day 5 lab: lab-efs counter run c2 300 lock	Success	i-00484ed8e1c1702e6,i-0f3f1fa2f79d90646
+f1783f0c-6625-443e-b9f8-2e90dcd9b003	2026-10-29T09:10:22.647000-03:00	day 5 lab: lab-efs counter check c2 600	Success	i-0f3f1fa2f79d90646
+27782375-60e7-4119-9f46-80f98627cf3b	2026-10-29T09:29:16.494000-03:00	day 5 lab: lab-efs mount other	Success	i-0f3f1fa2f79d90646
+6c871483-cec2-4521-9077-aed2a00ace7d	2026-10-29T09:29:24.235000-03:00	day 5 lab: lab-efs mount root	Success	i-0f3f1fa2f79d90646
+ce8ab4a9-caa7-4427-8385-116ed089f8bc	2026-10-29T09:29:55.814000-03:00	day 5 lab: lab-efs perms	Success	i-0f3f1fa2f79d90646
+7315481c-5d8b-4ed2-a825-8fede4775cae	2026-10-29T09:31:42.301000-03:00	day 5 lab: lab-efs umount other	Success	i-0f3f1fa2f79d90646
+9301816c-2706-4564-b7fb-504c3ca17216	2026-10-29T09:31:49.197000-03:00	day 5 lab: lab-efs umount root	Success	i-0f3f1fa2f79d90646
+b32d2190-573a-43f6-9f1e-362a7e8cfda7	2026-10-29T09:33:40.027000-03:00	day 5 lab: lab-efs try notls	Success	i-0f3f1fa2f79d90646
+0bc6f68f-54b8-4e01-a304-19dae18d9bed	2026-10-29T09:33:46.993000-03:00	day 5 lab: lab-efs try noiam	Success	i-0f3f1fa2f79d90646
+6a786880-b445-491a-afcb-39856dadbec7	2026-10-29T09:35:38.470000-03:00	day 5 lab: lab-efs umount all	Success	i-00484ed8e1c1702e6,i-0f3f1fa2f79d90646
+5eb01e9f-a359-4e2e-9e68-4af753fb1585	2026-10-29T09:35:50.202000-03:00	day 5 lab: lab-efs net	Success	i-00484ed8e1c1702e6,i-0f3f1fa2f79d90646
+ddef1c56-a44b-4d02-8c6c-a99090cecb6a	2026-10-29T09:45:03.671000-03:00	day 5 lab: lab-efs net	Success	i-00484ed8e1c1702e6
+937d58be-2e14-499e-96e1-09ab19e909cb	2026-10-29T09:45:14.075000-03:00	day 5 lab: lab-efs try blocked	Success	i-00484ed8e1c1702e6
+c3913773-384a-4da5-8d86-83fdcfe5ff3d	2026-10-29T09:50:04.787000-03:00	day 5 lab: lab-efs net	Success	i-00484ed8e1c1702e6,i-0f3f1fa2f79d90646
+cba33b21-5085-4c27-b3a9-36dc1a21fd8b	2026-10-29T09:50:17.028000-03:00	day 5 lab: lab-efs mount app	Success	i-00484ed8e1c1702e6,i-0f3f1fa2f79d90646
+6f2208e8-b735-4dc8-bedb-44b96962b5a0	2026-10-29T09:50:28.912000-03:00	day 5 lab: lab-efs probe	Success	i-00484ed8e1c1702e6,i-0f3f1fa2f79d90646
+5a71a36e-a692-410b-aff2-29c345a84df8	2026-10-29T09:51:40.341000-03:00	day 5 lab: lab-efs perf efs-a	Success	i-0f3f1fa2f79d90646
+efe93f15-f543-4e11-84bf-dc554d7a5b2f	2026-10-29T10:00:02.513000-03:00	day 5 lab: lab-efs perf local-a local	Success	i-0f3f1fa2f79d90646
+714b788e-f5dd-4865-a4f1-e97f7c63b700	2026-10-29T10:01:05.286000-03:00	collect lab fio results	Success	i-0f3f1fa2f79d90646
+c5872ce8-fcdb-4555-b481-806cb305251b	2026-10-29T10:01:21.626000-03:00	day 5 lab: lab-efs clean	Success	i-00484ed8e1c1702e6,i-0f3f1fa2f79d90646
+943da085-10ff-498c-b917-760ead62f297	2026-10-29T10:01:33.785000-03:00	day 5 lab: lab-efs umount all	Success	i-00484ed8e1c1702e6,i-0f3f1fa2f79d90646

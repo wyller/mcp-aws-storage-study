@@ -13,3 +13,5 @@ crash.log
 
 # Day 4: per-step lab variables (snapshots, restore_from); they describe live resources, not code.
 terraform/ebs-snapshots/terraform.tfvars
+# Day 5: per-step toggles (nfs_ingress_enabled, allow_anonymous).
+terraform/efs/terraform.tfvars
